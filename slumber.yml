@@ -29,7 +29,11 @@ requests:
     url: "{{ host }}/shorten"
     body:
       type: json
-      data: { "url": "{{ prompt(message='url to shorten') }}", "code": "{{ prompt(message='Short code') }}" }
+      data:
+        {
+          "url": "{{ prompt(message='url to shorten') }}",
+          "code": "{{ prompt(message='Short code') }}"
+        }
 
   shorten_example:
     name: Shorten example.com
@@ -37,7 +41,11 @@ requests:
     url: "{{ host }}/shorten"
     body:
       type: json
-      data: { "url": "https://example.com/", "code": "{{ prompt(message='Short code') }}" }
+      data:
+        {
+          "url": "https://example.com/",
+          "code": "{{ prompt(message='Short code') }}"
+        }
 
   redirect:
     name: Redirect
