@@ -1,0 +1,45 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/LucasPickering/slumber/refs/tags/v4.3.1/schemas/collection.json
+# ^ This enables schema validation and autocomplete in your editor
+# https://github.com/redhat-developer/yaml-language-server
+
+# For basic usage info, see:
+# https://slumber.lucaspickering.me/getting_started.html
+# For all collection options, see:
+# https://slumber.lucaspickering.me/api/request_collection/index.html
+
+name: Linx
+
+# Profiles are groups of data you can easily switch between. A common usage is
+# to define profiles for various environments of a REST service
+profiles:
+  example:
+    name: Dev
+    data:
+      host: http://localhost:3000
+
+requests:
+  health:
+    name: Health
+    method: GET
+    url: "{{ host }}/health"
+
+  shorten:
+    name: Shorten
+    method: POST
+    url: "{{ host }}/shorten"
+    body:
+      type: json
+      data: { "url": "{{ prompt(message='url to shorten') }}", "code": "{{ prompt(message='Short code') }}" }
+
+  shorten_example:
+    name: Shorten example.com
+    method: POST
+    url: "{{ host }}/shorten"
+    body:
+      type: json
+      data: { "url": "https://example.com/", "code": "{{ prompt(message='Short code') }}" }
+
+  redirect:
+    name: Redirect
+    method: GET
+    url: "{{ host }}/{{ prompt(message='short code') }}"
