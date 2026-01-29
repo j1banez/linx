@@ -229,9 +229,11 @@ name = "linx"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "http-body-util",
  "serde",
  "serde_json",
  "tokio",
+ "tower",
 ]
 
 [[package]]
