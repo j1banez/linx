@@ -7,6 +7,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::env;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -22,6 +23,12 @@ struct ShortenResponse {
     code: String,
 }
 
+#[derive(Clone)]
+struct AppState {
+    links: Arc<RwLock<HashMap<String, String>>>,
+    base_url: String,
+}
+
 #[tokio::main]
 async fn main() {
     let links = Arc::new(RwLock::new(HashMap::from([
@@ -31,11 +38,15 @@ async fn main() {
         ("x".to_string(), "http://x.com".to_string()),
     ])));
 
+    let base_url = env::var("LINX_URL")
+        .unwrap_or_else(|_| "http://127.0.0.1:3000".to_string());
+    let state = AppState { links, base_url };
+
     let app = Router::new()
         .route("/health", get(health))
         .route("/shorten", post(shorten))
-        .route("/r/{code}", get(redirect))
-        .with_state(links);
+        .route("/{code}", get(redirect))
+        .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await
@@ -48,10 +59,10 @@ async fn health() -> &'static str {
 }
 
 async fn redirect(
-    State(links): State<Arc<RwLock<HashMap<String, String>>>>,
+    State(state): State<AppState>,
     Path(code): Path<String>,
 ) -> Result<Redirect, StatusCode> {
-    let links = links.read().await;
+    let links = state.links.read().await;
 
     if let Some(url) = links.get(&code) {
         Ok(Redirect::to(url))
@@ -61,10 +72,10 @@ async fn redirect(
 }
 
 async fn shorten(
-    State(links): State<Arc<RwLock<HashMap<String, String>>>>,
+    State(state): State<AppState>,
     Json(payload): Json<ShortenRequest>,
 ) -> Json<ShortenResponse> {
-    let mut links = links.write().await;
+    let mut links = state.links.write().await;
     let code = payload
         .code
         .unwrap_or_else(|| format!("l{}", links.len() + 1));
@@ -72,7 +83,7 @@ async fn shorten(
     links.insert(code.clone(), payload.url);
 
     Json(ShortenResponse {
-        short: format!("http://127.0.0.1:3000/{code}"),
+        short: format!("{}/{code}", state.base_url),
         code,
     })
 }
