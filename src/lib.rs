@@ -109,11 +109,8 @@ async fn insert_link(db: &SqlitePool, code: &str, url: &str) -> Result<(), AppEr
         .await
         .map(|_| ())
         .map_err(|err| match err {
-            sqlx::Error::Database(db_err) => {
-                if db_err.is_unique_violation() {
-                    AppError::Conflict("code already exists".to_string());
-                }
-                AppError::Internal
+            sqlx::Error::Database(db_err) if db_err.is_unique_violation() => {
+                AppError::Conflict("code already exists".to_string())
             }
             _ => AppError::Internal,
         })
@@ -152,5 +149,40 @@ fn generate_code(length: usize) -> String {
 }
 
 fn is_base62(s: &str) -> bool {
-    s.bytes().all(|b| BASE62.contains(&b))
+    !s.is_empty() && s.bytes().all(|b| BASE62.contains(&b))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn is_base62_accepts_alphanumeric() {
+        assert!(is_base62("abcXYZ012"));
+        assert!(is_base62("0"));
+        assert!(is_base62("Z"));
+        assert!(is_base62("z"));
+    }
+
+    #[test]
+    fn is_base62_rejects_non_base62_chars() {
+        assert!(!is_base62(""));
+        assert!(!is_base62("hello-world"));
+        assert!(!is_base62("hello_world"));
+        assert!(!is_base62("hello world"));
+        assert!(!is_base62("é"));
+        assert!(!is_base62("/"));
+        assert!(!is_base62("%2F"));
+        assert!(!is_base62("?"));
+        assert!(!is_base62("!"));
+    }
+
+    #[test]
+    fn generate_code_has_correct_length_and_charset() {
+        for len in [1usize, 2, 6, 12, 32] {
+            let code = generate_code(len);
+            assert_eq!(code.len(), len);
+            assert!(code.bytes().all(|b| BASE62.contains(&b)));
+        }
+    }
 }
