@@ -34,13 +34,13 @@ impl IntoResponse for AppError {
             }
             AppError::Internal => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                error_response("internal error".to_string()),
+                error_response("internal error"),
             )
                 .into_response(),
         }
     }
 }
 
-fn error_response(msg: String) -> Json<ErrorResponse> {
-    Json(ErrorResponse { error: msg })
+fn error_response(msg: impl Into<String>) -> Json<ErrorResponse> {
+    Json(ErrorResponse { error: msg.into() })
 }
