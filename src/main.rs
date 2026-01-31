@@ -25,9 +25,9 @@ async fn main() {
 
     let state = AppState::new(base_url, pool, code_len);
     let app = build_app(state);
-
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await
         .unwrap();
+
     axum::serve(listener, app).await.unwrap();
 }

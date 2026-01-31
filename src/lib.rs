@@ -1,16 +1,19 @@
+use crate::error::AppError;
+use crate::response::AppResponse;
 use axum::{
     Json, Router,
     extract::{Path, State},
-    http::StatusCode,
-    http::header::LOCATION,
-    response::IntoResponse,
     routing::{get, post},
 };
 use rand::Rng;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use sqlx::SqlitePool;
 
+mod error;
+mod response;
+
 pub const DEFAULT_CODE_LEN: usize = 6;
+const MAX_CODE_LEN: usize = 32;
 const BASE62: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
 #[derive(Clone)]
@@ -36,12 +39,6 @@ struct ShortenRequest {
     code: Option<String>,
 }
 
-#[derive(Serialize)]
-struct ShortenResponse {
-    short_url: String,
-    code: String,
-}
-
 pub fn build_app(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health))
@@ -50,84 +47,96 @@ pub fn build_app(state: AppState) -> Router {
         .with_state(state)
 }
 
-async fn health() -> &'static str {
-    "ok"
+async fn health() -> AppResponse {
+    AppResponse::Health
 }
 
 async fn shorten(
     State(state): State<AppState>,
     Json(payload): Json<ShortenRequest>,
-) -> Result<Json<ShortenResponse>, StatusCode> {
+) -> Result<AppResponse, AppError> {
     // Handle empty values
-    let code_input = payload.code.and_then(|value| {
-        let trimmed = value.trim();
-        if trimmed.is_empty() {
-            None
-        } else {
-            Some(trimmed.to_string())
-        }
-    });
+    let code_input = payload
+        .code
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
 
     let code = match code_input {
         Some(code) => {
-            insert_link(&state.db, &code, &payload.url)
-                .await
-                .map_err(|err| map_insert_error(&err))?;
+            if code.len() > MAX_CODE_LEN {
+                return Err(AppError::BadRequest(format!(
+                    "code too long (max {MAX_CODE_LEN})"
+                )));
+            }
+            if !is_base62(&code) {
+                return Err(AppError::BadRequest("invalid code (base62 only)".into()));
+            }
+
+            insert_link(&state.db, &code, &payload.url).await?;
+
             code
         }
         None => generate_and_insert(&state.db, &payload.url, state.code_len).await?,
     };
 
-    Ok(Json(ShortenResponse {
-        short_url: format!("{}/{code}", state.base_url),
+    Ok(AppResponse::Shorten(
+        format!("{}/{code}", state.base_url),
         code,
-    }))
+    ))
 }
 
 async fn redirect(
     State(state): State<AppState>,
     Path(code): Path<String>,
-) -> Result<axum::response::Response, StatusCode> {
+) -> Result<AppResponse, AppError> {
     let url = sqlx::query_scalar::<_, String>("SELECT url FROM link WHERE code = ?")
         .bind(&code)
         .fetch_optional(&state.db)
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .map_err(|_| AppError::Internal)?;
 
     match url {
-        Some(value) => Ok((StatusCode::MOVED_PERMANENTLY, [(LOCATION, value)]).into_response()),
-        None => Err(StatusCode::NOT_FOUND),
+        Some(to) => Ok(AppResponse::Redirect(to)),
+        None => Err(AppError::NotFound(None)),
     }
 }
 
-async fn insert_link(db: &SqlitePool, code: &str, url: &str) -> Result<(), sqlx::Error> {
+async fn insert_link(db: &SqlitePool, code: &str, url: &str) -> Result<(), AppError> {
     sqlx::query("INSERT INTO link (code, url) VALUES (?, ?)")
         .bind(code)
         .bind(url)
         .execute(db)
         .await
         .map(|_| ())
+        .map_err(|err| match err {
+            sqlx::Error::Database(db_err) => {
+                if db_err.is_unique_violation() {
+                    AppError::Conflict("code already exists".to_string());
+                }
+                AppError::Internal
+            }
+            _ => AppError::Internal,
+        })
 }
 
 async fn generate_and_insert(
     db: &SqlitePool,
     url: &str,
     code_len: usize,
-) -> Result<String, StatusCode> {
-    // Retry multiple times in cae of collisions
+) -> Result<String, AppError> {
+    // Retry multiple times in case of collisions
     for _ in 0..5 {
         let code = generate_code(code_len);
         match insert_link(db, &code, url).await {
             Ok(()) => return Ok(code),
-            Err(err) => {
-                if !is_unique_violation(&err) {
-                    return Err(StatusCode::INTERNAL_SERVER_ERROR);
-                }
-            }
+            Err(AppError::Internal) => return Err(AppError::Internal),
+            Err(_) => continue,
         }
     }
 
-    Err(StatusCode::CONFLICT)
+    Err(AppError::Conflict(
+        "unable to generate unique code".to_string(),
+    ))
 }
 
 fn generate_code(length: usize) -> String {
@@ -142,17 +151,6 @@ fn generate_code(length: usize) -> String {
     code
 }
 
-fn is_unique_violation(err: &sqlx::Error) -> bool {
-    match err {
-        sqlx::Error::Database(db_err) => db_err.is_unique_violation(),
-        _ => false,
-    }
-}
-
-fn map_insert_error(err: &sqlx::Error) -> StatusCode {
-    if is_unique_violation(err) {
-        StatusCode::CONFLICT
-    } else {
-        StatusCode::INTERNAL_SERVER_ERROR
-    }
+fn is_base62(s: &str) -> bool {
+    s.bytes().all(|b| BASE62.contains(&b))
 }
