@@ -3,9 +3,16 @@ use sqlx::SqlitePool;
 use sqlx::sqlite::SqliteConnectOptions;
 use std::env;
 use std::str::FromStr;
+use tracing_subscriber::{EnvFilter, fmt};
 
 #[tokio::main]
 async fn main() {
+    fmt()
+        .with_env_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info,linx=info")),
+        )
+        .init();
+
     let base_url = env::var("LINX_URL").unwrap_or_else(|_| "http://127.0.0.1:3000".to_string());
     let database_url =
         env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://./linx.db".to_string());
@@ -33,6 +40,8 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await
         .unwrap();
+
+    tracing::info!("listening on http://{}", listener.local_addr().unwrap());
 
     axum::serve(listener, app).await.unwrap();
 }

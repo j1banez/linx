@@ -8,6 +8,7 @@ use axum::{
 use rand::Rng;
 use serde::Deserialize;
 use sqlx::SqlitePool;
+use tracing::instrument;
 
 mod error;
 mod response;
@@ -34,7 +35,7 @@ impl AppState {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct ShortenRequest {
     url: String,
     code: Option<String>,
@@ -52,6 +53,7 @@ async fn health() -> AppResponse {
     AppResponse::Health
 }
 
+#[instrument(skip(state))]
 async fn shorten(
     State(state): State<AppState>,
     Json(payload): Json<ShortenRequest>,
@@ -86,6 +88,7 @@ async fn shorten(
     ))
 }
 
+#[instrument(skip(state))]
 async fn redirect(
     State(state): State<AppState>,
     Path(code): Path<String>,
