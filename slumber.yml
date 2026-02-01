@@ -21,12 +21,12 @@ requests:
   health:
     name: Health
     method: GET
-    url: "{{ host }}/health"
+    url: "{{ host }}/api/health"
 
   shorten:
     name: Shorten
     method: POST
-    url: "{{ host }}/shorten"
+    url: "{{ host }}/api/shorten"
     body:
       type: json
       data:
@@ -38,7 +38,7 @@ requests:
   shorten_example:
     name: Shorten example.com
     method: POST
-    url: "{{ host }}/shorten"
+    url: "{{ host }}/api/shorten"
     body:
       type: json
       data:
@@ -55,4 +55,4 @@ requests:
   stats:
     name: Stats
     method: GET
-    url: "{{ host }}/{{ prompt(message='short code') }}/stats"
+    url: "{{ host }}/api/{{ prompt(message='short code') }}/stats"
