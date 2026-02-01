@@ -1,4 +1,4 @@
-use linx::{AppState, build_app};
+use linx::{AppState, MAX_CODE_LEN, MIN_CODE_LEN, build_app};
 use sqlx::SqlitePool;
 use sqlx::sqlite::SqliteConnectOptions;
 use std::env;
@@ -20,6 +20,11 @@ async fn main() {
     let pool = SqlitePool::connect_with(options)
         .await
         .expect("Failed to open SQLite database");
+
+    if code_len < MIN_CODE_LEN || code_len > MAX_CODE_LEN {
+        eprintln!("invalid CODE_LEN={code_len} (expected {MIN_CODE_LEN}-{MAX_CODE_LEN})");
+        std::process::exit(2);
+    }
 
     sqlx::migrate!().run(&pool).await.unwrap();
 

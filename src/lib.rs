@@ -13,7 +13,8 @@ mod error;
 mod response;
 
 pub const DEFAULT_CODE_LEN: usize = 6;
-const MAX_CODE_LEN: usize = 32;
+pub const MIN_CODE_LEN: usize = 4;
+pub const MAX_CODE_LEN: usize = 32;
 const BASE62: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
 #[derive(Clone)]
