@@ -28,7 +28,7 @@ async fn stats_returns_link_details() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/ex/stats")
+                .uri("/api/ex/stats")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -56,7 +56,7 @@ async fn stats_returns_404_for_unknown_code() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/doesnotexist/stats")
+                .uri("/api/doesnotexist/stats")
                 .body(Body::empty())
                 .unwrap(),
         )

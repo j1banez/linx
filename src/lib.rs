@@ -12,6 +12,7 @@ use axum::{
 use rand::Rng;
 use serde::Deserialize;
 use sqlx::SqlitePool;
+use tower_http::services::ServeDir;
 use tracing::instrument;
 
 pub const DEFAULT_CODE_LEN: usize = 6;
@@ -43,13 +44,33 @@ struct ShortenRequest {
 }
 
 pub fn build_app(state: AppState) -> Router {
-    Router::new()
+    let api = Router::new()
         .route("/health", get(health))
         .route("/shorten", post(shorten))
+        .route("/{code}/stats", get(stats));
+
+    let ui = Router::new()
+        .route("/", get(home_page))
+        .route("/{code}/stats", get(stats_page));
+
+    Router::new()
+        // Static assets
+        .nest_service("/static", ServeDir::new("public"))
+        .route_service(
+            "/robots.txt",
+            ServeDir::new("public").append_index_html_on_directories(false),
+        )
+        // API
+        .nest("/api", api)
+        // UI
+        .merge(ui)
+        // Redirect, keep this a the end.
         .route("/{code}", get(redirect))
-        .route("/{code}/stats", get(stats))
         .with_state(state)
 }
+
+async fn home_page() {}
+async fn stats_page() {}
 
 async fn health() -> AppResponse {
     AppResponse::Health

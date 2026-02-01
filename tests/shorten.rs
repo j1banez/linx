@@ -21,7 +21,7 @@ async fn shorten_returns_code_and_short() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/shorten")
+                .uri("/api/shorten")
                 .header("content-type", "application/json")
                 .body(Body::from(body))
                 .unwrap(),
