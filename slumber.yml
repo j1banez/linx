@@ -32,7 +32,7 @@ requests:
       data:
         {
           "url": "{{ prompt(message='url to shorten') }}",
-          "code": "{{ prompt(message='Short code') }}"
+          "code": "{{ prompt(message='Short code') }}",
         }
 
   shorten_example:
@@ -44,10 +44,15 @@ requests:
       data:
         {
           "url": "https://example.com/",
-          "code": "{{ prompt(message='Short code') }}"
+          "code": "{{ prompt(message='Short code') }}",
         }
 
   redirect:
     name: Redirect
     method: GET
     url: "{{ host }}/{{ prompt(message='short code') }}"
+
+  stats:
+    name: Stats
+    method: GET
+    url: "{{ host }}/{{ prompt(message='short code') }}/stats"

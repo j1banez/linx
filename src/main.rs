@@ -21,9 +21,15 @@ async fn main() {
         .and_then(|value| value.parse::<usize>().ok())
         .filter(|value| *value > 0)
         .unwrap_or(linx::DEFAULT_CODE_LEN);
+
     let options = SqliteConnectOptions::from_str(&database_url)
         .expect("Invalid DATABASE_URL format")
-        .create_if_missing(true);
+        .create_if_missing(true)
+        .pragma("journal_mode", "WAL")
+        .pragma("synchronous", "NORMAL")
+        .pragma("busy_timeout", "2000")
+        .pragma("foreign_keys", "ON");
+
     let pool = SqlitePool::connect_with(options)
         .await
         .expect("Failed to open SQLite database");

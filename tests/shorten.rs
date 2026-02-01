@@ -1,23 +1,15 @@
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
-use linx::{AppState, DEFAULT_CODE_LEN, build_app};
 use serde_json::Value;
-use sqlx::sqlite::SqlitePoolOptions;
 use tower::ServiceExt;
+
+mod common;
 
 #[tokio::test]
 async fn shorten_returns_code_and_short() {
-    let pool = SqlitePoolOptions::new()
-        .max_connections(1)
-        .connect("sqlite::memory:")
-        .await
-        .unwrap();
-
-    sqlx::migrate!().run(&pool).await.unwrap();
-
-    let state = AppState::new("http://localhost:3000".to_string(), pool, DEFAULT_CODE_LEN);
-    let app = build_app(state);
+    let pool = common::new_test_db().await;
+    let app = common::new_test_app(pool);
 
     let body = serde_json::json!({
         "url": "https://example.com",

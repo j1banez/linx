@@ -1,20 +1,16 @@
+mod common;
+
 use axum::body::Body;
 use axum::http::Request;
 use axum::http::StatusCode;
 use axum::http::header::LOCATION;
-use linx::{AppState, DEFAULT_CODE_LEN, build_app};
-use sqlx::sqlite::SqlitePoolOptions;
+use tokio::time::{Duration, sleep};
 use tower::ServiceExt;
 
 #[tokio::test]
 async fn redirect_returns_location_header() {
-    let pool = SqlitePoolOptions::new()
-        .max_connections(1)
-        .connect("sqlite::memory:")
-        .await
-        .unwrap();
+    let pool = common::new_test_db().await;
 
-    sqlx::migrate!().run(&pool).await.unwrap();
     sqlx::query("INSERT INTO link (code, url) VALUES (?, ?)")
         .bind("ex")
         .bind("https://example.com")
@@ -22,8 +18,7 @@ async fn redirect_returns_location_header() {
         .await
         .unwrap();
 
-    let state = AppState::new("http://localhost:3000".to_string(), pool, DEFAULT_CODE_LEN);
-    let app = build_app(state);
+    let app = common::new_test_app(pool);
 
     let response = app
         .oneshot(
@@ -41,4 +36,46 @@ async fn redirect_returns_location_header() {
         response.headers().get(LOCATION).unwrap(),
         "https://example.com"
     );
+}
+
+#[tokio::test]
+async fn redirect_bumps_stats() {
+    let pool = common::new_test_db().await;
+
+    sqlx::query(
+        "INSERT INTO link (code, url, clicks, created_at)
+         VALUES (?, ?, 0, unixepoch())",
+    )
+    .bind("ex")
+    .bind("https://example.com")
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let app = common::new_test_app(pool.clone());
+
+    let _ = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/ex")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    // Stats are updated async, give the spawned task time to run
+    sleep(Duration::from_millis(10)).await;
+
+    let (clicks, last_accessed_at) = sqlx::query_as::<_, (i64, Option<i64>)>(
+        "SELECT clicks, last_accessed_at FROM link WHERE code = ?",
+    )
+    .bind("ex")
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+
+    assert_eq!(clicks, 1);
+    assert!(last_accessed_at.is_some());
 }

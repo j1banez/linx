@@ -41,6 +41,15 @@ impl IntoResponse for AppError {
     }
 }
 
+impl From<sqlx::Error> for AppError {
+    fn from(err: sqlx::Error) -> Self {
+        match err {
+            sqlx::Error::RowNotFound => AppError::NotFound(None),
+            _ => AppError::Internal,
+        }
+    }
+}
+
 fn error_response(msg: impl Into<String>) -> Json<ErrorResponse> {
     Json(ErrorResponse { error: msg.into() })
 }

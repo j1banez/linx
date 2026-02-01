@@ -46,6 +46,7 @@ pub fn build_app(state: AppState) -> Router {
         .route("/health", get(health))
         .route("/shorten", post(shorten))
         .route("/{code}", get(redirect))
+        .route("/{code}/stats", get(stats))
         .with_state(state)
 }
 
@@ -96,12 +97,48 @@ async fn redirect(
     let url = sqlx::query_scalar::<_, String>("SELECT url FROM link WHERE code = ?")
         .bind(&code)
         .fetch_optional(&state.db)
-        .await
-        .map_err(|_| AppError::Internal)?;
+        .await?;
 
     match url {
-        Some(to) => Ok(AppResponse::Redirect(to)),
+        Some(to) => {
+            let db = state.db.clone();
+            let code = code.clone();
+
+            tokio::spawn(async move {
+                if let Err(err) = bump_link_stats(&db, &code).await {
+                    tracing::error!(%code, error = ?err, "failed to bump link stats");
+                }
+            });
+
+            Ok(AppResponse::Redirect(to))
+        }
         None => Err(AppError::NotFound(None)),
+    }
+}
+
+#[instrument(skip(state))]
+async fn stats(
+    State(state): State<AppState>,
+    Path(code): Path<String>,
+) -> Result<AppResponse, AppError> {
+    let row = sqlx::query_as::<_, (String, i64, i64, Option<i64>)>(
+        "SELECT url, clicks, created_at, last_accessed_at
+         FROM link
+         WHERE code = ?",
+    )
+    .bind(&code)
+    .fetch_optional(&state.db)
+    .await?;
+
+    match row {
+        Some((url, clicks, created_at, last_accessed_at)) => Ok(AppResponse::new_stats(
+            code,
+            url,
+            clicks,
+            created_at,
+            last_accessed_at,
+        )),
+        None => Err(AppError::NotFound(Some("code".into()))),
     }
 }
 
@@ -111,13 +148,28 @@ async fn insert_link(db: &SqlitePool, code: &str, url: &str) -> Result<(), AppEr
         .bind(url)
         .execute(db)
         .await
-        .map(|_| ())
         .map_err(|err| match err {
             sqlx::Error::Database(db_err) if db_err.is_unique_violation() => {
                 AppError::Conflict("code already exists".to_string())
             }
             _ => AppError::Internal,
-        })
+        })?;
+
+    Ok(())
+}
+
+async fn bump_link_stats(db: &SqlitePool, code: &str) -> Result<(), AppError> {
+    sqlx::query(
+        "UPDATE link
+         SET clicks = clicks + 1,
+             last_accessed_at = unixepoch()
+         WHERE code = ?",
+    )
+    .bind(code)
+    .execute(db)
+    .await?;
+
+    Ok(())
 }
 
 async fn generate_and_insert(
