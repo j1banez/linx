@@ -1,3 +1,7 @@
+pub mod error;
+pub mod response;
+pub mod validate;
+
 use crate::error::AppError;
 use crate::response::AppResponse;
 use axum::{
@@ -9,9 +13,6 @@ use rand::Rng;
 use serde::Deserialize;
 use sqlx::SqlitePool;
 use tracing::instrument;
-
-mod error;
-mod response;
 
 pub const DEFAULT_CODE_LEN: usize = 6;
 pub const MIN_CODE_LEN: usize = 4;
@@ -59,28 +60,15 @@ async fn shorten(
     State(state): State<AppState>,
     Json(payload): Json<ShortenRequest>,
 ) -> Result<AppResponse, AppError> {
-    // Handle empty values
-    let code_input = payload
-        .code
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty());
+    let url = validate::validate_and_normalize_url(&payload.url)?;
 
-    let code = match code_input {
+    let code = match payload.code {
         Some(code) => {
-            if code.len() > MAX_CODE_LEN {
-                return Err(AppError::BadRequest(format!(
-                    "code too long (max {MAX_CODE_LEN})"
-                )));
-            }
-            if !is_base62(&code) {
-                return Err(AppError::BadRequest("invalid code (base62 only)".into()));
-            }
-
-            insert_link(&state.db, &code, &payload.url).await?;
-
+            let code = validate::validate_and_normalize_code(&code)?;
+            insert_link(&state.db, &code, &url).await?;
             code
         }
-        None => generate_and_insert(&state.db, &payload.url, state.code_len).await?,
+        None => generate_and_insert(&state.db, &url, state.code_len).await?,
     };
 
     Ok(AppResponse::Shorten(
@@ -192,7 +180,7 @@ async fn generate_and_insert(
     ))
 }
 
-fn generate_code(length: usize) -> String {
+pub fn generate_code(length: usize) -> String {
     let mut rng = rand::thread_rng();
     let mut code = String::with_capacity(length);
 
@@ -204,39 +192,14 @@ fn generate_code(length: usize) -> String {
     code
 }
 
-fn is_base62(s: &str) -> bool {
-    !s.is_empty() && s.bytes().all(|b| BASE62.contains(&b))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn is_base62_accepts_alphanumeric() {
-        assert!(is_base62("abcXYZ012"));
-        assert!(is_base62("0"));
-        assert!(is_base62("Z"));
-        assert!(is_base62("z"));
-    }
-
-    #[test]
-    fn is_base62_rejects_non_base62_chars() {
-        assert!(!is_base62(""));
-        assert!(!is_base62("hello-world"));
-        assert!(!is_base62("hello_world"));
-        assert!(!is_base62("hello world"));
-        assert!(!is_base62("é"));
-        assert!(!is_base62("/"));
-        assert!(!is_base62("%2F"));
-        assert!(!is_base62("?"));
-        assert!(!is_base62("!"));
-    }
-
-    #[test]
     fn generate_code_has_correct_length_and_charset() {
         for len in [1usize, 2, 6, 12, 32] {
-            let code = generate_code(len);
+            let code = crate::generate_code(len);
             assert_eq!(code.len(), len);
             assert!(code.bytes().all(|b| BASE62.contains(&b)));
         }
