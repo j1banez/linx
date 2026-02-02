@@ -26,11 +26,15 @@ impl IntoResponse for AppError {
             }
             AppError::Conflict(msg) => (StatusCode::CONFLICT, error_response(msg)).into_response(),
             AppError::NotFound(entity_name) => {
-                let msg = entity_name
-                    .map(|name| format!("{name} not found"))
-                    .unwrap_or_else(|| "not found".to_string());
-
-                (StatusCode::NOT_FOUND, error_response(msg)).into_response()
+                if let Some(entity_name) = entity_name {
+                    (
+                        StatusCode::NOT_FOUND,
+                        error_response(format!("{entity_name} not found")),
+                    )
+                        .into_response()
+                } else {
+                    StatusCode::NOT_FOUND.into_response()
+                }
             }
             AppError::Internal => (
                 StatusCode::INTERNAL_SERVER_ERROR,
