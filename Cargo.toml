@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+askama = "0.15.4"
 axum = "0.8.8"
 rand = "0.8"
 serde = { version = "1.0.227", features = ["derive"] }

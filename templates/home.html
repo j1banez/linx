@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+{% block title %}Linx{% endblock %}
+
+{% block content%}
+    <form method="post" action="/">
+        <input name="url" type="text" placeholder="https://example.com" required />
+        <input
+            name="code"
+            type="text"
+            placeholder="code (optionnel)"
+            maxlength="32"
+        />
+    <button type="submit">Créer</button>
+    </form>
+
+    {% if msg.is_some() %}
+    <p>{{ msg.as_ref().unwrap() }}</p>
+    {% endif %}
+{% endblock %}

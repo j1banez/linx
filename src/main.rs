@@ -1,4 +1,7 @@
-use linx::{AppState, MAX_CODE_LEN, MIN_CODE_LEN, build_app};
+use linx::{
+    AppState, build_app,
+    validate::{DEFAULT_CODE_LEN, MAX_CODE_LEN, MIN_CODE_LEN},
+};
 use sqlx::SqlitePool;
 use sqlx::sqlite::SqliteConnectOptions;
 use std::env;
@@ -20,7 +23,7 @@ async fn main() {
         .ok()
         .and_then(|value| value.parse::<usize>().ok())
         .filter(|value| *value > 0)
-        .unwrap_or(linx::DEFAULT_CODE_LEN);
+        .unwrap_or(DEFAULT_CODE_LEN);
 
     let options = SqliteConnectOptions::from_str(&database_url)
         .expect("Invalid DATABASE_URL format")

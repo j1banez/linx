@@ -1,5 +1,5 @@
 use axum::Router;
-use linx::{AppState, DEFAULT_CODE_LEN, build_app};
+use linx::{AppState, build_app, validate::DEFAULT_CODE_LEN};
 use sqlx::SqlitePool;
 use sqlx::sqlite::SqlitePoolOptions;
 

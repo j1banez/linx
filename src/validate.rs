@@ -1,8 +1,11 @@
 use crate::error::AppError;
-use crate::{BASE62, MAX_CODE_LEN};
 use url::Url;
 
 const MAX_URL_LEN: usize = 2048;
+pub const DEFAULT_CODE_LEN: usize = 6;
+pub const MIN_CODE_LEN: usize = 4;
+pub const MAX_CODE_LEN: usize = 32;
+pub const BASE62: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
 pub fn is_base62(s: &str) -> bool {
     !s.is_empty() && s.bytes().all(|b| BASE62.contains(&b))

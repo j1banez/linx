@@ -1,0 +1,38 @@
+{% extends "layout.html" %}
+{% block title %}Linx - Stats{% endblock %}
+
+{% block content %}
+    <a href="/">Raccourcir un lien</a>
+
+    <h2>Stats</h2>
+
+    <p>
+        <b>Code:</b> {{ code }}
+    </p>
+    <p>
+        <b>Lien court:</b> <a href="{{ short_url }}">{{ short_url }}</a>
+    </p>
+    <p>
+        <b>URL cible:</b> <a href="{{ url }}">{{ url }}</a>
+    </p>
+    <p>
+        <b>Clicks:</b> {{ clicks }}
+    </p>
+    <p>
+        <b>Created at (unixepoch):</b> {{ created_at }}
+    </p>
+
+    {% if last_accessed_at.is_some() %}
+    <p>
+        <b>Last accessed (unixepoch):</b> {{ last_accessed_at.as_ref().unwrap() }}
+    </p>
+    {% else %}
+    <p>
+        <b>Last accessed:</b> jamais
+    </p>
+    {% endif %}
+
+    <p>
+        <small>JSON: <a href="{{ api_stats_url }}">{{ api_stats_url }}</a></small>
+    </p>
+{% endblock %}

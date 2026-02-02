@@ -18,41 +18,52 @@ profiles:
       host: http://localhost:3000
 
 requests:
-  health:
-    name: Health
-    method: GET
-    url: "{{ host }}/api/health"
-
-  shorten:
-    name: Shorten
-    method: POST
-    url: "{{ host }}/api/shorten"
-    body:
-      type: json
-      data:
-        {
-          "url": "{{ prompt(message='url to shorten') }}",
-          "code": "{{ prompt(message='Short code') }}",
-        }
-
-  shorten_example:
-    name: Shorten example.com
-    method: POST
-    url: "{{ host }}/api/shorten"
-    body:
-      type: json
-      data:
-        {
-          "url": "https://example.com/",
-          "code": "{{ prompt(message='Short code') }}",
-        }
-
   redirect:
     name: Redirect
     method: GET
     url: "{{ host }}/{{ prompt(message='short code') }}"
 
-  stats:
-    name: Stats
-    method: GET
-    url: "{{ host }}/api/{{ prompt(message='short code') }}/stats"
+  api:
+    name: API
+    requests:
+      health:
+        name: Health
+        method: GET
+        url: "{{ host }}/api/health"
+
+      shorten:
+        name: Shorten
+        method: POST
+        url: "{{ host }}/api/shorten"
+        body:
+          type: json
+          data:
+            {
+              "url": "{{ prompt(message='url to shorten') }}",
+              "code": "{{ prompt(message='Short code') }}",
+            }
+
+      shorten_example:
+        name: Shorten example.com
+        method: POST
+        url: "{{ host }}/api/shorten"
+        body:
+          type: json
+          data:
+            {
+              "url": "https://example.com/",
+              "code": "{{ prompt(message='Short code') }}",
+            }
+
+      stats:
+        name: Stats
+        method: GET
+        url: "{{ host }}/api/{{ prompt(message='short code') }}/stats"
+
+  ui:
+    name: UI
+    requests:
+      home:
+        name: Home
+        method: GET
+        url: "{{ host }}/"
