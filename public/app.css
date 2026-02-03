@@ -88,13 +88,6 @@ a:hover {
     text-decoration: none;
 }
 
-.brand__mark {
-    width: 45px;
-    height: 45px;
-    color: var(--accent);
-    transform: translateY(3px);
-}
-
 .brand__name {
     font-size: clamp(36px, 4.5vw, 56px);
     letter-spacing: -0.02em;

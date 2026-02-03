@@ -11,29 +11,6 @@
             <header class="topbar">
                 <div class="container">
                     <a class="brand" href="/" aria-label="Linx home">
-                        <span class="brand__mark" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none">
-                                <path
-                                    d="M9.2 14.8l-1.4 1.4a3.2 3.2 0 0 1-4.5 0 3.2 3.2 0 0 1 0-4.5l2.1-2.1a3.2 3.2 0 0 1 4.5 0"
-                                    stroke="currentColor"
-                                    stroke-width="1.7"
-                                    stroke-linecap="round"
-                                />
-                                <path
-                                    d="M14.8 9.2l1.4-1.4a3.2 3.2 0 0 1 4.5 0 3.2 3.2 0 0 1 0 4.5l-2.1 2.1a3.2 3.2 0 0 1-4.5 0"
-                                    stroke="currentColor"
-                                    stroke-width="1.7"
-                                    stroke-linecap="round"
-                                />
-                                <path
-                                    d="M9 15l6-6"
-                                    stroke="currentColor"
-                                    stroke-width="1.7"
-                                    stroke-linecap="round"
-                                />
-                            </svg>
-                        </span>
-
                         <h1 class="brand__name">Linx</h1>
                     </a>
 
@@ -90,7 +67,8 @@
             ];
             const el = document.getElementById("tagline");
             if (el && taglines.length > 0) {
-                const pick = taglines[Math.floor(Math.random() * taglines.length)];
+                const pick =
+                    taglines[Math.floor(Math.random() * taglines.length)];
                 el.textContent = pick;
             }
         </script>
