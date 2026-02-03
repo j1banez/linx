@@ -15,6 +15,10 @@ Simple, lightweight, self hosted.
 
 ## Screenshots
 
+![Home](public/screenshot1.webp)
+
+![Stats](public/screenshot2.webp)
+
 ## FAQ
 
 >Is Linx multi-user?
