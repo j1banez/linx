@@ -71,6 +71,56 @@
                     taglines[Math.floor(Math.random() * taglines.length)];
                 el.textContent = pick;
             }
+
+            const dateEls = document.querySelectorAll("[data-ts]");
+
+            if (dateEls.length > 0) {
+                const formatter = new Intl.DateTimeFormat(undefined, {
+                    year: "numeric",
+                    month: "short",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                });
+                const relativeFormatter = new Intl.RelativeTimeFormat(
+                    undefined,
+                    {
+                        numeric: "auto",
+                    },
+                );
+                const units = [
+                    ["year", 31_536_000],
+                    ["month", 2_592_000],
+                    ["day", 86_400],
+                    ["hour", 3_600],
+                    ["minute", 60],
+                    ["second", 1],
+                ];
+
+                dateEls.forEach((node) => {
+                    const raw = Number(node.dataset.ts);
+                    if (!Number.isFinite(raw)) return;
+                    const date = new Date(raw * 1000);
+                    const display = formatter.format(date);
+                    const diffSeconds = Math.round(
+                        (date.getTime() - Date.now()) / 1000,
+                    );
+                    const absSeconds = Math.abs(diffSeconds);
+
+                    let unit = "second";
+                    let value = diffSeconds;
+                    for (const [candidate, seconds] of units) {
+                        if (absSeconds >= seconds) {
+                            unit = candidate;
+                            value = Math.round(diffSeconds / seconds);
+                            break;
+                        }
+                    }
+
+                    const relative = relativeFormatter.format(value, unit);
+                    node.textContent = `${display} (${relative})`;
+                });
+            }
         </script>
     </body>
 </html>

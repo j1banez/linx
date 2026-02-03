@@ -29,13 +29,19 @@
 
         <div class="kv__row">
             <div class="kv__key">Created at</div>
-            <div class="kv__val">{{ created_at }} <span class="kv__key">(unixepoch)</span></div>
+            <div class="kv__val">
+                <span class="date" data-ts="{{ created_at }}">{{ created_at }}</span>
+            </div>
         </div>
 
         {% if last_accessed_at.is_some() %}
         <div class="kv__row">
             <div class="kv__key">Last accessed</div>
-            <div class="kv__val">{{ last_accessed_at.as_ref().unwrap() }} <span class="kv__key">(unixepoch)</span></div>
+            <div class="kv__val">
+                <span class="date" data-ts="{{ last_accessed_at.as_ref().unwrap() }}">
+                    {{ last_accessed_at.as_ref().unwrap() }}
+                </span>
+            </div>
         </div>
         {% else %}
         <div class="kv__row">
