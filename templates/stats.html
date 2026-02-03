@@ -2,37 +2,50 @@
 {% block title %}Linx - Stats{% endblock %}
 
 {% block content %}
-    <a href="/">Raccourcir un lien</a>
+    <a class="button button--ghost" href="/">← Shorten URL</a>
 
-    <h2>Stats</h2>
+    <h2 class="h2">Stats</h2>
 
-    <p>
-        <b>Code:</b> {{ code }}
-    </p>
-    <p>
-        <b>Lien court:</b> <a href="{{ short_url }}">{{ short_url }}</a>
-    </p>
-    <p>
-        <b>URL cible:</b> <a href="{{ url }}">{{ url }}</a>
-    </p>
-    <p>
-        <b>Clicks:</b> {{ clicks }}
-    </p>
-    <p>
-        <b>Created at (unixepoch):</b> {{ created_at }}
-    </p>
+    <div class="kv">
+        <div class="kv__row">
+            <div class="kv__key">Code</div>
+            <div class="kv__val">{{ code }}</div>
+        </div>
 
-    {% if last_accessed_at.is_some() %}
-    <p>
-        <b>Last accessed (unixepoch):</b> {{ last_accessed_at.as_ref().unwrap() }}
-    </p>
-    {% else %}
-    <p>
-        <b>Last accessed:</b> jamais
-    </p>
-    {% endif %}
+        <div class="kv__row">
+            <div class="kv__key">Short link</div>
+            <div class="kv__val"><a href="{{ short_url }}">{{ short_url }}</a></div>
+        </div>
 
-    <p>
-        <small>JSON: <a href="{{ api_stats_url }}">{{ api_stats_url }}</a></small>
+        <div class="kv__row">
+            <div class="kv__key">URL</div>
+            <div class="kv__val"><a href="{{ url }}">{{ url }}</a></div>
+        </div>
+
+        <div class="kv__row">
+            <div class="kv__key">Clicks</div>
+            <div class="kv__val">{{ clicks }}</div>
+        </div>
+
+        <div class="kv__row">
+            <div class="kv__key">Created at</div>
+            <div class="kv__val">{{ created_at }} <span class="kv__key">(unixepoch)</span></div>
+        </div>
+
+        {% if last_accessed_at.is_some() %}
+        <div class="kv__row">
+            <div class="kv__key">Last accessed</div>
+            <div class="kv__val">{{ last_accessed_at.as_ref().unwrap() }} <span class="kv__key">(unixepoch)</span></div>
+        </div>
+        {% else %}
+        <div class="kv__row">
+            <div class="kv__key">Last accessed</div>
+            <div class="kv__val">never</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <p class="small">
+        JSON: <a href="{{ api_stats_url }}">{{ api_stats_url }}</a>
     </p>
 {% endblock %}

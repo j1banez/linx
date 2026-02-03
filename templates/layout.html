@@ -7,10 +7,92 @@
         <link rel="stylesheet" href="/static/app.css" />
     </head>
     <body>
-        <header>
-            <h1><a href="/">Linx</a></h1>
-        </header>
+        <div class="page">
+            <header class="topbar">
+                <div class="container">
+                    <a class="brand" href="/" aria-label="Linx home">
+                        <span class="brand__mark" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <path
+                                    d="M9.2 14.8l-1.4 1.4a3.2 3.2 0 0 1-4.5 0 3.2 3.2 0 0 1 0-4.5l2.1-2.1a3.2 3.2 0 0 1 4.5 0"
+                                    stroke="currentColor"
+                                    stroke-width="1.7"
+                                    stroke-linecap="round"
+                                />
+                                <path
+                                    d="M14.8 9.2l1.4-1.4a3.2 3.2 0 0 1 4.5 0 3.2 3.2 0 0 1 0 4.5l-2.1 2.1a3.2 3.2 0 0 1-4.5 0"
+                                    stroke="currentColor"
+                                    stroke-width="1.7"
+                                    stroke-linecap="round"
+                                />
+                                <path
+                                    d="M9 15l6-6"
+                                    stroke="currentColor"
+                                    stroke-width="1.7"
+                                    stroke-linecap="round"
+                                />
+                            </svg>
+                        </span>
 
-        <main>{% block content %}{% endblock %}</main>
+                        <h1 class="brand__name">Linx</h1>
+                    </a>
+
+                    <p class="subhead" id="tagline"></p>
+                </div>
+            </header>
+
+            <main class="main">
+                <div class="container">
+                    <div class="panel">{% block content %}{% endblock %}</div>
+                </div>
+            </main>
+
+            <footer class="footer">
+                <div class="container">
+                    <span>
+                        Open-source •
+                        <a href="https://github.com/j1banez/linx">GitHub</a>
+                    </span>
+                </div>
+            </footer>
+        </div>
+        <script>
+            const taglines = [
+                "May the links be with you.",
+                "Hasta la vista, links.",
+                "Links, uh, find a way.",
+                "Say hello to my little links!",
+                "Roads? Where we're going we need links.",
+                "Welcome to the party, links.",
+                "Nobody puts links in a corner.",
+                "In space, no one can hear links shorten.",
+                "Links are the way.",
+                "He who controls the links, controls the universe.",
+                "The links must flow.",
+                "Fear is the links killer.",
+                "I see links.",
+                "Even the smallest links can change the course of the future.",
+                "Links are coming.",
+                "When you play the game of links, you win, or you die.",
+                "I fight for the links.",
+                "My mama always said life was like a box of links.",
+                "I'm the king of the links!",
+                "They may take our lives, but they'll never take our links.",
+                "My name is Maximus Decimus Meridius, commander of the Armies of the Links.",
+                "They call it a Royale with links.",
+                "Links on, links off.",
+                "Good morning, links!",
+                "Help me, Links-Wan Kenobi. You're my only hope.",
+                "Pay no attention to those links behind the curtain!",
+                "Keep your friends close, but your links closer.",
+                "E.T. links home.",
+                "Links, I've a feeling we're not in Kansas anymore.",
+            ];
+            const el = document.getElementById("tagline");
+            if (el && taglines.length > 0) {
+                const pick = taglines[Math.floor(Math.random() * taglines.length)];
+                el.textContent = pick;
+            }
+        </script>
     </body>
 </html>

@@ -1,1 +1,270 @@
-/* app.css */
+:root {
+    --bg: #f6f2ec; /* warm parchment */
+    --panel: rgba(255, 255, 255, 0.65);
+    --text: #151515;
+    --muted: #5a524b;
+    --border: #d8cfc6;
+    --accent: #a44a2a; /* rust / lynx */
+    --accent-hover: #7f3820;
+    --radius: 14px;
+    --radius-sm: 10px;
+    --maxw: 860px;
+
+    --font-serif:
+        ui-serif, "Source Serif 4", "Iowan Old Style", "Palatino Linotype",
+        Palatino, Georgia, serif;
+}
+
+/* ---------- Reset ---------- */
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    font-family: var(--font-serif);
+    line-height: 1.55;
+    color: var(--text);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle paper texture */
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background:
+        radial-gradient(
+            1200px 600px at 20% 10%,
+            rgba(0, 0, 0, 0.04),
+            transparent 60%
+        ),
+        radial-gradient(
+            900px 500px at 90% 20%,
+            rgba(0, 0, 0, 0.03),
+            transparent 55%
+        );
+}
+
+/* ---------- Links ---------- */
+a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+a:hover {
+    color: var(--accent-hover);
+}
+
+/* ---------- Layout ---------- */
+.page {
+    min-height: 100%;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+}
+
+.container {
+    width: min(100% - 40px, var(--maxw));
+    margin: 0 auto;
+}
+
+/* ---------- Header ---------- */
+.topbar {
+    padding: 36px 0 12px;
+}
+
+.brand {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 10px;
+    text-decoration: none;
+}
+
+.brand__mark {
+    width: 45px;
+    height: 45px;
+    color: var(--accent);
+    transform: translateY(3px);
+}
+
+.brand__name {
+    font-size: clamp(36px, 4.5vw, 56px);
+    letter-spacing: -0.02em;
+    margin: 0;
+    line-height: 1.05;
+}
+
+.subhead {
+    margin: 12px 0 0;
+    max-width: 70ch;
+    color: var(--muted);
+    font-size: 16px;
+}
+
+/* ---------- Main ---------- */
+.main {
+    padding: 28px 0 40px;
+}
+
+.panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: clamp(18px, 3.5vw, 30px);
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.05);
+    backdrop-filter: blur(6px);
+}
+
+/* ---------- Forms ---------- */
+.form {
+    display: grid;
+    gap: 14px;
+    max-width: 72ch;
+}
+
+.form__row {
+    display: grid;
+    gap: 12px;
+}
+
+@media (min-width: 720px) {
+    .form__row {
+        grid-template-columns: 1.4fr 1fr auto;
+        align-items: center;
+    }
+}
+
+input[type="text"] {
+    width: 100%;
+    padding: 12px;
+    font: inherit;
+    color: var(--text);
+    background: #fcfbf9;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    outline: none;
+}
+
+input::placeholder {
+    color: color-mix(in srgb, var(--muted) 65%, transparent);
+}
+
+input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+/* ---------- Buttons ---------- */
+.button {
+    padding: 11px 16px;
+    font: inherit;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+}
+
+.button:hover {
+    background: var(--accent-hover);
+}
+
+.button:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12) inset;
+}
+
+.button--ghost {
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.button--ghost:hover {
+    color: var(--accent-hover);
+}
+
+/* ---------- Notices ---------- */
+.notice {
+    margin-top: 16px;
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.55);
+}
+
+.notice--ok {
+    border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+.notice--warn {
+    border-color: color-mix(in srgb, #c16f2d 55%, var(--border));
+    background: color-mix(in srgb, #fff5ea 70%, transparent);
+}
+
+/* ---------- Stats ---------- */
+.h2 {
+    font-size: 24px;
+    margin: 24px 0 12px;
+    letter-spacing: -0.01em;
+}
+
+.kv {
+    display: grid;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.kv__row {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.kv__key {
+    font-size: 14px;
+    color: var(--muted);
+}
+
+.kv__val {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+/* ---------- Footer ---------- */
+.footer {
+    padding: 20px 0 32px;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.footer a {
+    color: var(--muted);
+}
+
+.footer a:hover {
+    color: var(--text);
+}
+
+.small {
+    font-size: 13px;
+}
+
+/* ---------- SVG ---------- */
+svg {
+    display: block;
+}
