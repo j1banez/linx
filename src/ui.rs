@@ -90,7 +90,7 @@ async fn stats_page(State(state): State<AppState>, Path(code): Path<String>) -> 
 
     let Some((url, clicks, created_at, last_accessed_at)) = row else {
         let tpl = NotFoundTemplate {
-            message: "Code introuvable.",
+            message: "Code not found.",
         };
         let html = tpl.render().unwrap_or_else(|_| "Not found".to_string());
 
