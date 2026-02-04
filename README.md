@@ -92,6 +92,33 @@ Typical policy:
   - `GET /api/*` (API)
   - `POST /api/*` (API)
 
+##### Example with Traefik (docker labels) and basic auth
+
+```yaml
+labels:
+  # Basic auth middleware
+  # 
+  # Example:
+  # user: linx, password: linx
+  # Generate with `htpasswd -nb linx 'linx'` and double each $
+  - traefik.http.middlewares.linx-basic-auth.basicauth.users=linx:$$apr1$$AfVj3cVu$$91q1.8/CwJLjwkUBjWJJ1/
+
+  # API
+  - traefik.http.routers.linx-api.priority=1000
+  - traefik.http.routers.linx-api.rule=Host(`your.domain`) && PathPrefix(`/api`)
+  - traefik.http.routers.linx-api.service=linx-websecure
+  - traefik.http.routers.linx-api.middlewares=linx-basic-auth
+  # UI
+  - traefik.http.routers.linx-ui.priority=900
+  - traefik.http.routers.linx-ui.rule=Host(`your.domain`) && PathPrefix(`/`)
+  - traefik.http.routers.linx-ui.service=linx-websecure
+  - traefik.http.routers.linx-ui.middlewares=linx-basic-auth
+  # Redirects: /{code} (This one is public, no basic auth middleware)
+  - traefik.http.routers.linx-redirect.priority=1100
+  - traefik.http.routers.linx-redirect.rule=Host(`your.domain`) && PathRegexp(`^/[A-Za-z0-9]+$`)
+  - traefik.http.routers.linx-redirect.service=linx-websecure
+```
+
 ## 🧩 API
 
 - `GET /api/health`
