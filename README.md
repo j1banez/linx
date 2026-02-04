@@ -1,6 +1,6 @@
 # Linx
 
-[![CI](https://github.com/j1banez/linx/actions/workflows/docker.yml/badge.svg)](https://github.com/j1banez/linx/actions/workflows/docker.yml)
+[![CI](https://github.com/j1banez/linx/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/j1banez/linx/actions/workflows/ci.yml)
 [![Docker Image](https://img.shields.io/badge/docker-ghcr.io%2Fj1banez%2Flinx-blue)](https://github.com/j1banez/linx/pkgs/container/linx)
 
 Linx is a simple, lightweight, self-hosted URL shortener.
