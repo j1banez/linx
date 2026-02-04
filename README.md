@@ -44,6 +44,8 @@ volumes:
 
 ### Run from source
 
+Install Rust: https://rust-lang.org/tools/install
+
 ```sh
 git clone https://github.com/j1banez/linx.git
 cd linx
