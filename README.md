@@ -14,7 +14,7 @@ docker run -d \
   --name linx \
   -p 3000:3000 \
   -v linx_data:/data \
-  -e LINX_URL="https://custom.domain" \
+  -e LINX_URL="https://your.domain" \
   ghcr.io/j1banez/linx:latest
 ```
 
@@ -33,7 +33,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      LINX_URL: "https://custom.domain"
+      LINX_URL: "https://your.domain"
     volumes:
       - linx_data:/data
     restart: unless-stopped
@@ -47,7 +47,7 @@ volumes:
 ```sh
 git clone https://github.com/j1banez/linx.git
 cd linx
-LINX_URL=https://custom.domain cargo run
+LINX_URL=https://your.domain cargo run
 ```
 
 ## ⚙️ Configuration
@@ -73,6 +73,32 @@ LINX_URL=https://custom.domain cargo run
 Linx does **not** implement authentication.
 
 Do it at the reverse proxy layer (Traefik / Nginx / Caddy / Apache), or via your SSO gateway (Authelia, Authentik, Keycloak, etc.).
+
+## 🧩 API
+
+- `GET /api/health`
+  - Returns `ok`.
+- `POST /api/shorten`
+  - Request body:
+    ```json
+    {"url":"https://example.com","code":"custom"}
+    ```
+  - `code` is optional; if omitted, a random one is generated.
+  - Response:
+    ```json
+    {"short_url":"https://your.domain/AbC123","code":"AbC123"}
+    ```
+- `GET /api/{code}/stats`
+  - Response:
+    ```json
+    {
+      "code":"AbC123",
+      "url":"https://example.com/",
+      "clicks":12,
+      "created_at":1700000000,
+      "last_accessed_at":1700000100
+    }
+    ```
 
 ## 📸 Screenshots
 
