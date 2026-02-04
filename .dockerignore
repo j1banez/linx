@@ -1,0 +1,11 @@
+.git
+/target
+/debug
+*.md
+linx.db
+linx.db-shm
+linx.db-wal
+*.db
+*.db-shm
+*.db-wal
+.DS_Store

@@ -46,11 +46,16 @@ async fn main() {
 
     let state = AppState::new(base_url, pool, code_len);
     let app = build_app(state);
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
-        .await
-        .unwrap();
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
 
     tracing::info!("listening on http://{}", listener.local_addr().unwrap());
 
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app)
+        .with_graceful_shutdown(async {
+            let _ = tokio::signal::ctrl_c().await;
+            // Just so the next shell prompt goes to the next line after a ^C
+            eprintln!();
+        })
+        .await
+        .unwrap();
 }
