@@ -14,7 +14,7 @@ docker run -d \
   --name linx \
   -p 3000:3000 \
   -v linx_data:/data \
-  -e LINX_URL="https://your.domain" \
+  -e LINX_URL="http://localhost:3000" \
   ghcr.io/j1banez/linx:latest
 ```
 
@@ -33,7 +33,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      LINX_URL: "https://your.domain"
+      LINX_URL: "http://localhost:3000"
     volumes:
       - linx_data:/data
     restart: unless-stopped
@@ -47,8 +47,10 @@ volumes:
 ```sh
 git clone https://github.com/j1banez/linx.git
 cd linx
-LINX_URL=https://your.domain cargo run
+LINX_URL=http://localhost:3000 cargo run
 ```
+
+Note: replace `http://localhost:3000` with your actual domain or IP address in production.
 
 ## ⚙️ Configuration
 
