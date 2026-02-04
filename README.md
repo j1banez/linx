@@ -74,6 +74,24 @@ Linx does **not** implement authentication.
 
 Do it at the reverse proxy layer (Traefik / Nginx / Caddy / Apache), or via your SSO gateway (Authelia, Authentik, Keycloak, etc.).
 
+### Recommended strategy
+
+#### Public redirects, protected admin
+Make the **redirect route public** (so anyone can use short links),
+but protect everything else (UI + stats + API).
+
+Typical policy:
+
+- **Public** (no auth)
+  - `GET /{code}` (redirect)
+- **Protected** (auth required)
+  - `GET /` (home UI)
+  - `POST /` (create short link)
+  - `GET /{code}/stats` (stats UI)
+  - `GET /static/*` (static files)
+  - `GET /api/*` (API)
+  - `POST /api/*` (API)
+
 ## 🧩 API
 
 - `GET /api/health`
