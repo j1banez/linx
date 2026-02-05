@@ -1,5 +1,5 @@
 use linx::{
-    AppState, build_app,
+    AppState, DEFAULT_REDIRECT_CACHE_CAPACITY, build_app,
     validate::{DEFAULT_CODE_LEN, MAX_CODE_LEN, MIN_CODE_LEN},
 };
 use sqlx::SqlitePool;
@@ -24,6 +24,11 @@ async fn main() {
         .and_then(|value| value.parse::<usize>().ok())
         .filter(|value| *value > 0)
         .unwrap_or(DEFAULT_CODE_LEN);
+    let cache_capacity = env::var("REDIRECT_CACHE_CAPACITY")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(DEFAULT_REDIRECT_CACHE_CAPACITY);
 
     let options = SqliteConnectOptions::from_str(&database_url)
         .expect("Invalid DATABASE_URL format")
@@ -44,7 +49,7 @@ async fn main() {
 
     sqlx::migrate!().run(&pool).await.unwrap();
 
-    let state = AppState::new(base_url, pool, code_len);
+    let state = AppState::new(base_url, pool, code_len, cache_capacity);
     let app = build_app(state);
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
 

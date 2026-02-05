@@ -1,5 +1,5 @@
 use axum::Router;
-use linx::{AppState, build_app, validate::DEFAULT_CODE_LEN};
+use linx::{AppState, DEFAULT_REDIRECT_CACHE_CAPACITY, build_app, validate::DEFAULT_CODE_LEN};
 use sqlx::SqlitePool;
 use sqlx::sqlite::SqlitePoolOptions;
 
@@ -16,6 +16,11 @@ pub async fn new_test_db() -> SqlitePool {
 }
 
 pub fn new_test_app(pool: SqlitePool) -> Router {
-    let state = AppState::new("http://localhost:3000".to_string(), pool, DEFAULT_CODE_LEN);
+    let state = AppState::new(
+        "http://localhost:3000".to_string(),
+        pool,
+        DEFAULT_CODE_LEN,
+        DEFAULT_REDIRECT_CACHE_CAPACITY,
+    );
     build_app(state)
 }
