@@ -18,4 +18,47 @@
             <div class="notice notice--ok">{{ msg.as_ref().unwrap() }}</div>
         {% endif %}
     </form>
+
+    <section class="links">
+        <h2>Recent links</h2>
+
+        {% if links.is_empty() %}
+            <p class="links__empty">No links yet. Create one above.</p>
+        {% else %}
+            <div class="links__table">
+                <div class="links__row links__row--head">
+                    <div>Short</div>
+                    <div>Destination</div>
+                    <div>Clicks</div>
+                    <div></div>
+                </div>
+                {% for link in links %}
+                    <div class="links__row">
+                        <div>{{ link.code }}</div>
+                        <div class="links__url">{{ link.url }}</div>
+                        <div>{{ link.clicks }}</div>
+                        <div><a href="{{ link.stats_url }}">View</a></div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if total_pages > 1 %}
+            <div class="links__pagination">
+                <span>Page {{ page }} of {{ total_pages }}</span>
+                <div class="links__pager">
+                    {% if has_prev %}
+                        <a class="button button--ghost" href="/?page={{ prev_page }}">Previous</a>
+                    {% else %}
+                        <span class="links__disabled">Previous</span>
+                    {% endif %}
+                    {% if has_next %}
+                        <a class="button button--ghost" href="/?page={{ next_page }}">Next</a>
+                    {% else %}
+                        <span class="links__disabled">Next</span>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    </section>
 {% endblock %}

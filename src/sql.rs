@@ -40,6 +40,29 @@ pub async fn fetch_link_stats(
     .await
 }
 
+pub async fn list_links(
+    db: &SqlitePool,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<(String, String, i64)>, sqlx::Error> {
+    sqlx::query_as::<_, (String, String, i64)>(
+        "SELECT code, url, clicks
+         FROM link
+         ORDER BY created_at DESC
+         LIMIT ? OFFSET ?",
+    )
+    .bind(limit)
+    .bind(offset)
+    .fetch_all(db)
+    .await
+}
+
+pub async fn count_links(db: &SqlitePool) -> Result<i64, sqlx::Error> {
+    sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM link")
+        .fetch_one(db)
+        .await
+}
+
 pub async fn bump_link_stats_by(db: &SqlitePool, code: &str, count: i64) -> Result<(), AppError> {
     sqlx::query(
         "UPDATE link
