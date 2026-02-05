@@ -6,3 +6,5 @@
 linx.db
 linx.db-shm
 linx.db-wal
+
+.bench

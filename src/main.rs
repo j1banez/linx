@@ -2,10 +2,10 @@ use linx::{
     AppState, DEFAULT_REDIRECT_CACHE_CAPACITY, build_app,
     validate::{DEFAULT_CODE_LEN, MAX_CODE_LEN, MIN_CODE_LEN},
 };
-use sqlx::SqlitePool;
-use sqlx::sqlite::SqliteConnectOptions;
+use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use std::env;
 use std::str::FromStr;
+use std::time::Duration;
 use tracing_subscriber::{EnvFilter, fmt};
 
 #[tokio::main]
@@ -29,6 +29,11 @@ async fn main() {
         .and_then(|value| value.parse::<usize>().ok())
         .filter(|value| *value > 0)
         .unwrap_or(DEFAULT_REDIRECT_CACHE_CAPACITY);
+    let max_connections = env::var("DATABASE_MAX_CONNECTIONS")
+        .ok()
+        .and_then(|value| value.parse::<u32>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(10);
 
     let options = SqliteConnectOptions::from_str(&database_url)
         .expect("Invalid DATABASE_URL format")
@@ -38,7 +43,10 @@ async fn main() {
         .pragma("busy_timeout", "2000")
         .pragma("foreign_keys", "ON");
 
-    let pool = SqlitePool::connect_with(options)
+    let pool = SqlitePoolOptions::new()
+        .max_connections(max_connections)
+        .acquire_timeout(Duration::from_secs(5))
+        .connect_with(options)
         .await
         .expect("Failed to open SQLite database");
 

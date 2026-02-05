@@ -62,8 +62,9 @@ Note: replace `http://localhost:3000` with your actual domain or IP address in p
 |-----------------|----------|---------------------------------|-------------|
 | `LINX_URL`      | no       | `http://127.0.0.1:3000`         | Public base URL used to generate short links. This should match how users access the service (domain, port, https, etc.). |
 | `DATABASE_URL`  | no       | docker: `sqlite:///data/linx.db`, source: `sqlite://./linx.db` | SQLite database location. Use a volume to persist data when running in Docker. |
+| `DATABASE_MAX_CONNECTIONS` | no | `10`                            | Max SQLite pool connections. |
 | `CODE_LEN`      | no       | `6`                             | Default short code length (allowed range 4-32). |
-| `REDIRECT_CACHE_CAPACITY` | no | `10000`                        | Max number of redirect entries kept in the in-memory LRU cache. |
+| `REDIRECT_CACHE_CAPACITY`  | no | `10000`                    | Max number of redirect entries kept in the in-memory LRU cache. |
 | `RUST_LOG`      | no       | `info`                          | Log level (e.g. `debug`, `info`, `warn`, `error`). |
 
 ## ✨ Features
@@ -72,6 +73,38 @@ Note: replace `http://localhost:3000` with your actual domain or IP address in p
 - Basic stats: click counter and last-access date
 - Minimal web UI plus JSON API
 - Zero config SQLite storage
+
+## 🧠 Design
+
+- Redirects are served from an in-memory LRU cache to avoid frequent DB reads.
+- Stats updates are fire-and-forget and batched in memory to reduce SQLite write contention.
+- SQLite runs in WAL mode for better concurrency on reads.
+
+## 🧩 API
+
+- `GET /api/health`
+  - Returns `ok`.
+- `POST /api/shorten`
+  - Request body:
+    ```json
+    {"url":"https://example.com","code":"custom"}
+    ```
+  - `code` is optional; if omitted, a random one is generated.
+  - Response:
+    ```json
+    {"short_url":"https://your.domain/AbC123","code":"AbC123"}
+    ```
+- `GET /api/{code}/stats`
+  - Response:
+    ```json
+    {
+      "code":"AbC123",
+      "url":"https://example.com/",
+      "clicks":12,
+      "created_at":1700000000,
+      "last_accessed_at":1700000100
+    }
+    ```
 
 ## 🔐 Authentication
 
@@ -124,37 +157,27 @@ labels:
   - traefik.http.routers.linx-redirect.service=linx-websecure
 ```
 
-## 🧩 API
-
-- `GET /api/health`
-  - Returns `ok`.
-- `POST /api/shorten`
-  - Request body:
-    ```json
-    {"url":"https://example.com","code":"custom"}
-    ```
-  - `code` is optional; if omitted, a random one is generated.
-  - Response:
-    ```json
-    {"short_url":"https://your.domain/AbC123","code":"AbC123"}
-    ```
-- `GET /api/{code}/stats`
-  - Response:
-    ```json
-    {
-      "code":"AbC123",
-      "url":"https://example.com/",
-      "clicks":12,
-      "created_at":1700000000,
-      "last_accessed_at":1700000100
-    }
-    ```
-
 ## 📸 Screenshots
 
 ![Home](public/screenshot1.webp)
 
 ![Stats](public/screenshot2.webp)
+
+## 🧪 Benchmarking
+
+Use the built-in script for reproducible local benchmarks:
+
+```sh
+./scripts/bench.sh
+```
+
+It won't represent real-world performance but at least it allows to compare performance on the
+same host when modifying the code.
+
+Notes:
+- Runs a release build and benchmarks the redirect route without following redirects (`-r 0`).
+- Uses a mixed hot/cold workload (80/20) to avoid single-code cache bias.
+- You need `oha` installed.
 
 ## ❓ FAQ
 

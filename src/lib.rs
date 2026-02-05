@@ -14,12 +14,16 @@ use axum::{
 };
 use lru::LruCache;
 use sqlx::SqlitePool;
+use std::collections::HashMap;
 use std::num::NonZeroUsize;
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 use tower_http::services::ServeDir;
 use tracing::instrument;
 
 pub const DEFAULT_REDIRECT_CACHE_CAPACITY: usize = 10_000;
+const DEFAULT_STATS_BATCH_SIZE: i64 = 100;
+const DEFAULT_STATS_FLUSH_INTERVAL: Duration = Duration::from_secs(1);
 
 #[derive(Clone)]
 pub struct AppState {
@@ -27,6 +31,14 @@ pub struct AppState {
     db: SqlitePool,
     code_len: usize,
     redirect_cache: Arc<Mutex<LruCache<String, String>>>,
+    stats_buffer: Arc<Mutex<HashMap<String, StatsBuffer>>>,
+    stats_batch_size: i64,
+    stats_flush_interval: Duration,
+}
+
+struct StatsBuffer {
+    pending: i64,
+    last_flush: Instant,
 }
 
 impl AppState {
@@ -40,6 +52,9 @@ impl AppState {
             db,
             code_len,
             redirect_cache,
+            stats_buffer: Arc::new(Mutex::new(HashMap::new())),
+            stats_batch_size: DEFAULT_STATS_BATCH_SIZE,
+            stats_flush_interval: DEFAULT_STATS_FLUSH_INTERVAL,
         }
     }
 }
@@ -74,14 +89,7 @@ async fn redirect(
         .get(&code)
         .cloned()
     {
-        let db = state.db.clone();
-        let code = code.clone();
-
-        tokio::spawn(async move {
-            if let Err(err) = sql::bump_link_stats(&db, &code).await {
-                tracing::error!(%code, error = ?err, "failed to bump link stats");
-            }
-        });
+        maybe_bump_link_stats(&state, &code);
 
         return Ok(AppResponse::Redirect(to));
     }
@@ -98,17 +106,54 @@ async fn redirect(
                 .lock()
                 .expect("redirect cache lock poisoned")
                 .put(code.clone(), to.clone());
-            let db = state.db.clone();
-            let code = code.clone();
 
-            tokio::spawn(async move {
-                if let Err(err) = sql::bump_link_stats(&db, &code).await {
-                    tracing::error!(%code, error = ?err, "failed to bump link stats");
-                }
-            });
+            maybe_bump_link_stats(&state, &code);
 
             Ok(AppResponse::Redirect(to))
         }
         None => Err(AppError::NotFound(None)),
     }
+}
+
+// Batch stats updates to reduce SQLite write contention while keeping stats fresh.
+// Flush when either a count threshold is reached or a time window elapses.
+fn maybe_bump_link_stats(state: &AppState, code: &str) {
+    let now = Instant::now();
+    let mut flush_count = None;
+
+    {
+        let mut buffer = state
+            .stats_buffer
+            .lock()
+            .expect("stats buffer lock poisoned");
+        let entry = buffer
+            .entry(code.to_string())
+            .or_insert_with(|| StatsBuffer {
+                pending: 0,
+                // Ensure first hit flushes immediately to keep stats responsive.
+                last_flush: now - state.stats_flush_interval,
+            });
+
+        entry.pending += 1;
+
+        if entry.pending >= state.stats_batch_size
+            || now.duration_since(entry.last_flush) >= state.stats_flush_interval
+        {
+            flush_count = Some(entry.pending);
+            entry.pending = 0;
+            entry.last_flush = now;
+        }
+    }
+
+    if let Some(count) = flush_count {
+        spawn_bump_link_stats(state.db.clone(), code.to_string(), count);
+    }
+}
+
+fn spawn_bump_link_stats(db: SqlitePool, code: String, count: i64) {
+    tokio::spawn(async move {
+        if let Err(err) = sql::bump_link_stats_by(&db, &code, count).await {
+            tracing::error!(%code, error = ?err, "failed to bump link stats");
+        }
+    });
 }

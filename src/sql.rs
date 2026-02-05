@@ -40,13 +40,14 @@ pub async fn fetch_link_stats(
     .await
 }
 
-pub async fn bump_link_stats(db: &SqlitePool, code: &str) -> Result<(), AppError> {
+pub async fn bump_link_stats_by(db: &SqlitePool, code: &str, count: i64) -> Result<(), AppError> {
     sqlx::query(
         "UPDATE link
-         SET clicks = clicks + 1,
+         SET clicks = clicks + ?,
              last_accessed_at = unixepoch()
          WHERE code = ?",
     )
+    .bind(count)
     .bind(code)
     .execute(db)
     .await?;
