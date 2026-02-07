@@ -1,0 +1,5 @@
+[advisories]
+ignore = [
+    # There is no fix to this and we don't even use mysql
+    "RUSTSEC-2023-0071",
+]
