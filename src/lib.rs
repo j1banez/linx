@@ -97,22 +97,19 @@ async fn redirect(
     tracing::debug!(%code, "redirect cache miss");
 
     // Try to get the redirect from the database
-    let url = sql::fetch_link_url(&state.db, &code).await?;
+    let Some(to) = sql::fetch_link_url(&state.db, &code).await? else {
+        return Err(AppError::NotFound(None));
+    };
 
-    match url {
-        Some(to) => {
-            state
-                .redirect_cache
-                .lock()
-                .expect("redirect cache lock poisoned")
-                .put(code.clone(), to.clone());
+    state
+        .redirect_cache
+        .lock()
+        .expect("redirect cache lock poisoned")
+        .put(code.clone(), to.clone());
 
-            maybe_bump_link_stats(&state, &code);
+    maybe_bump_link_stats(&state, &code);
 
-            Ok(AppResponse::Redirect(to))
-        }
-        None => Err(AppError::NotFound(None)),
-    }
+    Ok(AppResponse::Redirect(to))
 }
 
 // Batch stats updates to reduce SQLite write contention while keeping stats fresh.
