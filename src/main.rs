@@ -16,7 +16,10 @@ async fn main() {
         )
         .init();
 
-    let base_url = env::var("LINX_URL").unwrap_or_else(|_| "http://127.0.0.1:3000".to_string());
+    let base_url = env::var("LINX_URL")
+        .unwrap_or_else(|_| "http://127.0.0.1:3000".to_string())
+        .trim_end_matches('/')
+        .to_string();
     let database_url =
         env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://./linx.db".to_string());
     let code_len = env::var("CODE_LEN")
