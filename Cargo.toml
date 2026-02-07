@@ -2,6 +2,11 @@
 name = "linx"
 version = "1.0.0"
 edition = "2024"
+description = "Self-hosted URL shortener."
+license = "MIT"
+authors = ["Jeremy Ibanez"]
+repository = "https://github.com/j1banez/linx"
+homepage = "https://github.com/j1banez/linx"
 
 [dependencies]
 askama = "0.15.4"
