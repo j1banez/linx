@@ -16,12 +16,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Cache deps
 COPY Cargo.toml Cargo.lock ./
 RUN mkdir -p src && echo "fn main() {}" > src/main.rs
-RUN cargo build --release
+RUN cargo build --release --locked
 RUN rm -rf src
 
 # Code
 COPY . .
-RUN cargo build --release
+RUN cargo build --release --locked
 
 ############################
 # 2) Runtime
