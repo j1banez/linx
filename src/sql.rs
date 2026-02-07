@@ -1,6 +1,7 @@
 use crate::error::AppError;
 use crate::validate::BASE62;
 use rand::Rng;
+use rand::rngs::OsRng;
 use sqlx::SqlitePool;
 
 pub async fn insert_link(db: &SqlitePool, code: &str, url: &str) -> Result<(), AppError> {
@@ -99,7 +100,7 @@ pub async fn generate_and_insert(
 }
 
 pub fn generate_code(length: usize) -> String {
-    let mut rng = rand::thread_rng();
+    let mut rng = OsRng;
     let mut code = String::with_capacity(length);
 
     for _ in 0..length {
