@@ -11,7 +11,7 @@ use axum::{
 use serde::Deserialize;
 use tracing::instrument;
 
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Deserialize)]
 struct ShortenRequest {
     url: String,
     code: Option<String>,

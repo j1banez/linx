@@ -15,13 +15,13 @@ use tracing::instrument;
 
 const HOME_PAGE_SIZE: i64 = 50;
 
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Deserialize)]
 struct ShortenForm {
     url: String,
     code: Option<String>,
 }
 
-#[derive(Deserialize, Debug, Default)]
+#[derive(Debug, Default, Deserialize)]
 struct HomeQuery {
     page: Option<String>,
 }
@@ -70,6 +70,7 @@ pub fn ui_routes() -> Router<AppState> {
         .route("/{code}/stats", get(stats_page))
 }
 
+#[instrument(skip(state))]
 async fn home_page(
     State(state): State<AppState>,
     Query(query): Query<HomeQuery>,

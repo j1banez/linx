@@ -12,7 +12,7 @@ struct ShortenResponse {
     code: String,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Debug, Serialize)]
 pub struct StatsResponse {
     code: String,
     url: String,
