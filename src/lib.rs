@@ -36,6 +36,7 @@ pub struct AppState {
     stats_flush_interval: Duration,
 }
 
+#[derive(Debug, Clone, Copy)]
 struct StatsBuffer {
     pending: i64,
     last_flush: Instant,
