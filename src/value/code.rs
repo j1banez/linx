@@ -55,6 +55,7 @@ impl std::fmt::Display for Code {
 }
 
 impl Code {
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }

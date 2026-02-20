@@ -26,3 +26,25 @@ url = "2.5.8"
 [dev-dependencies]
 http-body-util = "0.1"
 tower = "0.5"
+
+[lints.rust]
+unsafe_code = "deny"
+
+[lints.clippy]
+perf = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+manual_range_contains = "allow"
+missing_errors_doc = "allow"
+undocumented_unsafe_blocks = "deny"
+dbg_macro = "warn"
+#expect_used = "warn"
+if_then_some_else_none = "warn"
+indexing_slicing = "warn"
+large_include_file = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+unnecessary_safety_doc = "warn"
+#unwrap_used = "warn"
+module_name_repetitions = "allow"

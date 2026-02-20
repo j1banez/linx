@@ -50,6 +50,7 @@ impl IntoResponse for AppResponse {
 }
 
 impl AppResponse {
+    #[must_use]
     pub fn new_stats(
         code: String,
         url: String,

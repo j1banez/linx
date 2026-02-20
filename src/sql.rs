@@ -90,7 +90,7 @@ pub async fn generate_and_insert(
         match insert_link(db, &code, url).await {
             Ok(()) => return Ok(code),
             Err(AppError::Internal) => return Err(AppError::Internal),
-            Err(_) => continue,
+            Err(_) => {}
         }
     }
 
@@ -105,7 +105,10 @@ pub fn generate_code(length: usize) -> Result<Code, CodeError> {
 
     for _ in 0..length {
         let index = rng.gen_range(0..BASE62.len());
-        code.push(BASE62[index] as char);
+
+        if let Some(&b62) = BASE62.get(index) {
+            code.push(b62 as char);
+        }
     }
 
     Code::try_from(code)

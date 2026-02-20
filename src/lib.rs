@@ -44,10 +44,12 @@ struct StatsBuffer {
 }
 
 impl AppState {
+    #[must_use]
     pub fn new(base_url: String, db: SqlitePool, code_len: usize, cache_capacity: usize) -> Self {
-        let redirect_cache = Arc::new(Mutex::new(LruCache::new(
-            NonZeroUsize::new(cache_capacity).expect("cache capacity must be non-zero"),
-        )));
+        let cache_capacity = NonZeroUsize::new(cache_capacity)
+            .or(NonZeroUsize::new(DEFAULT_REDIRECT_CACHE_CAPACITY))
+            .unwrap_or(NonZeroUsize::MIN);
+        let redirect_cache = Arc::new(Mutex::new(LruCache::new(cache_capacity)));
 
         Self {
             base_url,
@@ -86,13 +88,17 @@ async fn redirect(
     let code = Code::try_from(code).map_err(|_| AppError::NotFound(None))?;
 
     // Try to get the redirect from the cache
-    if let Some(to) = state
+    let cached = state
         .redirect_cache
         .lock()
-        .expect("redirect cache lock poisoned")
+        .map_err(|_| {
+            tracing::error!("redirect cache lock poisoned");
+            AppError::Internal
+        })?
         .get(code.as_str())
-        .cloned()
-    {
+        .cloned();
+
+    if let Some(to) = cached {
         maybe_bump_link_stats(&state, &code);
 
         return Ok(AppResponse::Redirect(to));
@@ -108,7 +114,10 @@ async fn redirect(
     state
         .redirect_cache
         .lock()
-        .expect("redirect cache lock poisoned")
+        .map_err(|_| {
+            tracing::error!("redirect cache lock poisoned");
+            AppError::Internal
+        })?
         .put(code.to_string(), to.clone());
 
     maybe_bump_link_stats(&state, &code);
@@ -123,16 +132,16 @@ fn maybe_bump_link_stats(state: &AppState, code: &Code) {
     let mut flush_count = None;
 
     {
-        let mut buffer = state
-            .stats_buffer
-            .lock()
-            .expect("stats buffer lock poisoned");
+        let Ok(mut buffer) = state.stats_buffer.lock() else {
+            tracing::error!("stats buffer lock poisoned");
+            return;
+        };
         let entry = buffer
             .entry(code.to_string())
             .or_insert_with(|| StatsBuffer {
                 pending: 0,
                 // Ensure first hit flushes immediately to keep stats responsive.
-                last_flush: now - state.stats_flush_interval,
+                last_flush: now.checked_sub(state.stats_flush_interval).unwrap_or(now),
             });
 
         entry.pending += 1;

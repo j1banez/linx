@@ -54,7 +54,12 @@ async fn main() {
         .expect("Failed to open SQLite database");
 
     if code_len < MIN_CODE_LEN || code_len > MAX_CODE_LEN {
-        eprintln!("invalid CODE_LEN={code_len} (expected {MIN_CODE_LEN}-{MAX_CODE_LEN})");
+        tracing::error!(
+            code_len,
+            min = MIN_CODE_LEN,
+            max = MAX_CODE_LEN,
+            "invalid CODE_LEN"
+        );
         std::process::exit(2);
     }
 
@@ -69,8 +74,7 @@ async fn main() {
     axum::serve(listener, app)
         .with_graceful_shutdown(async {
             let _ = tokio::signal::ctrl_c().await;
-            // Just so the next shell prompt goes to the next line after a ^C
-            eprintln!();
+            tracing::info!("shutdown signal received");
         })
         .await
         .unwrap();

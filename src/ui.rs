@@ -113,7 +113,7 @@ async fn home_page(
     let links = rows
         .into_iter()
         .map(|(code, url, clicks)| LinkItem {
-            stats_url: format!("/{}/stats", code),
+            stats_url: format!("/{code}/stats"),
             code,
             url,
             clicks,
@@ -169,19 +169,16 @@ async fn stats_page(
     State(state): State<AppState>,
     Path(code): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-    let code = match Code::try_from(code) {
-        Ok(code) => code,
-        Err(_) => {
-            let tpl = NotFoundTemplate {
-                message: "Code not found.",
-            };
-            let html = tpl.render().unwrap_or_else(|_| "Not found".to_string());
-            return Ok((StatusCode::NOT_FOUND, Html(html)).into_response());
-        }
+    let Ok(code) = Code::try_from(code) else {
+        let tpl = NotFoundTemplate {
+            message: "Code not found.",
+        };
+        let html = tpl.render().unwrap_or_else(|_| "Not found".to_string());
+        return Ok((StatusCode::NOT_FOUND, Html(html)).into_response());
     };
 
     let row = match sql::fetch_link_stats(&state.db, &code).await {
-        Ok(v) => v,
+        Ok(row) => row,
         Err(err) => {
             tracing::error!(%code, error = ?err, "stats_page query failed");
             return Ok((
@@ -206,7 +203,7 @@ async fn stats_page(
     let tpl = StatsTemplate {
         url,
         short_url: format!("{}/{}", state.base_url, code),
-        api_stats_url: format!("/api/{}/stats", code),
+        api_stats_url: format!("/api/{code}/stats"),
         code,
         clicks,
         created_at,

@@ -36,7 +36,7 @@ impl TryFrom<&str> for ValidUrl {
             return Err(ValidUrlError::TooLong { max: MAX_URL_LEN });
         }
 
-        if url.chars().any(|c| c.is_control()) {
+        if url.chars().any(char::is_control) {
             return Err(ValidUrlError::WithControl);
         }
 
@@ -70,6 +70,7 @@ impl std::fmt::Display for ValidUrl {
 }
 
 impl ValidUrl {
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
