@@ -3,10 +3,11 @@ pub mod error;
 pub mod response;
 pub mod sql;
 pub mod ui;
-pub mod validate;
+pub mod value;
 
 use crate::error::AppError;
 use crate::response::AppResponse;
+use crate::value::Code;
 use axum::{
     Router,
     extract::{Path, State},
@@ -82,12 +83,14 @@ async fn redirect(
     State(state): State<AppState>,
     Path(code): Path<String>,
 ) -> Result<AppResponse, AppError> {
+    let code = Code::try_from(code).map_err(|_| AppError::NotFound(None))?;
+
     // Try to get the redirect from the cache
     if let Some(to) = state
         .redirect_cache
         .lock()
         .expect("redirect cache lock poisoned")
-        .get(&code)
+        .get(code.as_str())
         .cloned()
     {
         maybe_bump_link_stats(&state, &code);
@@ -106,7 +109,7 @@ async fn redirect(
         .redirect_cache
         .lock()
         .expect("redirect cache lock poisoned")
-        .put(code.clone(), to.clone());
+        .put(code.to_string(), to.clone());
 
     maybe_bump_link_stats(&state, &code);
 
@@ -115,7 +118,7 @@ async fn redirect(
 
 // Batch stats updates to reduce SQLite write contention while keeping stats fresh.
 // Flush when either a count threshold is reached or a time window elapses.
-fn maybe_bump_link_stats(state: &AppState, code: &str) {
+fn maybe_bump_link_stats(state: &AppState, code: &Code) {
     let now = Instant::now();
     let mut flush_count = None;
 
@@ -144,11 +147,11 @@ fn maybe_bump_link_stats(state: &AppState, code: &str) {
     }
 
     if let Some(count) = flush_count {
-        spawn_bump_link_stats(state.db.clone(), code.to_string(), count);
+        spawn_bump_link_stats(state.db.clone(), code.clone(), count);
     }
 }
 
-fn spawn_bump_link_stats(db: SqlitePool, code: String, count: i64) {
+fn spawn_bump_link_stats(db: SqlitePool, code: Code, count: i64) {
     tokio::spawn(async move {
         if let Err(err) = sql::bump_link_stats_by(&db, &code, count).await {
             tracing::error!(%code, error = ?err, "failed to bump link stats");

@@ -1,13 +1,13 @@
 use crate::error::AppError;
-use crate::validate::BASE62;
+use crate::value::{BASE62, Code, CodeError, ValidUrl};
 use rand::Rng;
 use rand::rngs::OsRng;
 use sqlx::SqlitePool;
 
-pub async fn insert_link(db: &SqlitePool, code: &str, url: &str) -> Result<(), AppError> {
+pub async fn insert_link(db: &SqlitePool, code: &Code, url: &ValidUrl) -> Result<(), AppError> {
     sqlx::query("INSERT INTO link (code, url) VALUES (?, ?)")
-        .bind(code)
-        .bind(url)
+        .bind(code.as_str())
+        .bind(url.as_str())
         .execute(db)
         .await
         .map_err(|err| match err {
@@ -20,23 +20,23 @@ pub async fn insert_link(db: &SqlitePool, code: &str, url: &str) -> Result<(), A
     Ok(())
 }
 
-pub async fn fetch_link_url(db: &SqlitePool, code: &str) -> Result<Option<String>, sqlx::Error> {
+pub async fn fetch_link_url(db: &SqlitePool, code: &Code) -> Result<Option<String>, sqlx::Error> {
     sqlx::query_scalar::<_, String>("SELECT url FROM link WHERE code = ?")
-        .bind(code)
+        .bind(code.as_str())
         .fetch_optional(db)
         .await
 }
 
 pub async fn fetch_link_stats(
     db: &SqlitePool,
-    code: &str,
+    code: &Code,
 ) -> Result<Option<(String, i64, i64, Option<i64>)>, sqlx::Error> {
     sqlx::query_as::<_, (String, i64, i64, Option<i64>)>(
         "SELECT url, clicks, created_at, last_accessed_at
          FROM link
          WHERE code = ?",
     )
-    .bind(code)
+    .bind(code.as_str())
     .fetch_optional(db)
     .await
 }
@@ -64,7 +64,7 @@ pub async fn count_links(db: &SqlitePool) -> Result<i64, sqlx::Error> {
         .await
 }
 
-pub async fn bump_link_stats_by(db: &SqlitePool, code: &str, count: i64) -> Result<(), AppError> {
+pub async fn bump_link_stats_by(db: &SqlitePool, code: &Code, count: i64) -> Result<(), AppError> {
     sqlx::query(
         "UPDATE link
          SET clicks = clicks + ?,
@@ -72,7 +72,7 @@ pub async fn bump_link_stats_by(db: &SqlitePool, code: &str, count: i64) -> Resu
          WHERE code = ?",
     )
     .bind(count)
-    .bind(code)
+    .bind(code.as_str())
     .execute(db)
     .await?;
 
@@ -81,12 +81,12 @@ pub async fn bump_link_stats_by(db: &SqlitePool, code: &str, count: i64) -> Resu
 
 pub async fn generate_and_insert(
     db: &SqlitePool,
-    url: &str,
+    url: &ValidUrl,
     code_len: usize,
-) -> Result<String, AppError> {
+) -> Result<Code, AppError> {
     // Retry multiple times in case of collisions
     for _ in 0..5 {
-        let code = generate_code(code_len);
+        let code = generate_code(code_len)?;
         match insert_link(db, &code, url).await {
             Ok(()) => return Ok(code),
             Err(AppError::Internal) => return Err(AppError::Internal),
@@ -99,7 +99,7 @@ pub async fn generate_and_insert(
     ))
 }
 
-pub fn generate_code(length: usize) -> String {
+pub fn generate_code(length: usize) -> Result<Code, CodeError> {
     let mut rng = OsRng;
     let mut code = String::with_capacity(length);
 
@@ -108,7 +108,7 @@ pub fn generate_code(length: usize) -> String {
         code.push(BASE62[index] as char);
     }
 
-    code
+    Code::try_from(code)
 }
 
 #[cfg(test)]
@@ -116,11 +116,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn generate_code_has_correct_length_and_charset() {
+    fn generate_code_has_correct_length() {
         for len in [1usize, 2, 6, 12, 32] {
-            let code = generate_code(len);
-            assert_eq!(code.len(), len);
-            assert!(code.bytes().all(|b| BASE62.contains(&b)));
+            let code = generate_code(len).expect("generated code should be valid");
+            assert_eq!(code.as_str().len(), len);
         }
     }
 }

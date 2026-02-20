@@ -1,3 +1,4 @@
+use crate::value::{CodeError, ValidUrlError};
 use axum::{
     Json,
     http::StatusCode,
@@ -51,6 +52,18 @@ impl From<sqlx::Error> for AppError {
             sqlx::Error::RowNotFound => AppError::NotFound(None),
             _ => AppError::Internal,
         }
+    }
+}
+
+impl From<CodeError> for AppError {
+    fn from(err: CodeError) -> Self {
+        AppError::BadRequest(err.to_string())
+    }
+}
+
+impl From<ValidUrlError> for AppError {
+    fn from(err: ValidUrlError) -> Self {
+        AppError::BadRequest(err.to_string())
     }
 }
 

@@ -1,7 +1,7 @@
 use crate::AppState;
 use crate::error::AppError;
 use crate::sql;
-use crate::validate;
+use crate::value::{Code, CodeError, ValidUrl};
 use askama::Template;
 use axum::{
     Router,
@@ -145,31 +145,50 @@ async fn home_submit(
     State(state): State<AppState>,
     Form(form): Form<ShortenForm>,
 ) -> Result<impl IntoResponse, AppError> {
-    let url = validate::validate_and_normalize_url(&form.url)?;
+    let url = ValidUrl::try_from(form.url)?;
 
     let code = match form.code {
-        Some(code) if !code.trim().is_empty() => {
-            let code = validate::validate_and_normalize_code(&code)?;
-            sql::insert_link(&state.db, &code, &url).await?;
-            code
-        }
-        _ => sql::generate_and_insert(&state.db, &url, state.code_len).await?,
+        Some(raw) => match Code::try_from(raw) {
+            Ok(code) => {
+                sql::insert_link(&state.db, &code, &url).await?;
+                code
+            }
+            Err(CodeError::Empty) => {
+                sql::generate_and_insert(&state.db, &url, state.code_len).await?
+            }
+            Err(err) => return Err(err.into()),
+        },
+        None => sql::generate_and_insert(&state.db, &url, state.code_len).await?,
     };
 
-    Ok(Redirect::to(&format!("/{}/stats", code)))
+    Ok(Redirect::to(&format!("/{code}/stats")))
 }
 
 #[instrument(skip(state))]
-async fn stats_page(State(state): State<AppState>, Path(code): Path<String>) -> impl IntoResponse {
+async fn stats_page(
+    State(state): State<AppState>,
+    Path(code): Path<String>,
+) -> Result<impl IntoResponse, AppError> {
+    let code = match Code::try_from(code) {
+        Ok(code) => code,
+        Err(_) => {
+            let tpl = NotFoundTemplate {
+                message: "Code not found.",
+            };
+            let html = tpl.render().unwrap_or_else(|_| "Not found".to_string());
+            return Ok((StatusCode::NOT_FOUND, Html(html)).into_response());
+        }
+    };
+
     let row = match sql::fetch_link_stats(&state.db, &code).await {
         Ok(v) => v,
         Err(err) => {
             tracing::error!(%code, error = ?err, "stats_page query failed");
-            return (
+            return Ok((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Html("internal error".to_string()),
             )
-                .into_response();
+                .into_response());
         }
     };
 
@@ -179,8 +198,10 @@ async fn stats_page(State(state): State<AppState>, Path(code): Path<String>) -> 
         };
         let html = tpl.render().unwrap_or_else(|_| "Not found".to_string());
 
-        return (StatusCode::NOT_FOUND, Html(html)).into_response();
+        return Ok((StatusCode::NOT_FOUND, Html(html)).into_response());
     };
+
+    let code = code.to_string();
 
     let tpl = StatsTemplate {
         url,
@@ -193,14 +214,14 @@ async fn stats_page(State(state): State<AppState>, Path(code): Path<String>) -> 
     };
 
     match tpl.render() {
-        Ok(html) => Html(html).into_response(),
+        Ok(html) => Ok(Html(html).into_response()),
         Err(err) => {
             tracing::error!(error = ?err, "stats_page render failed");
-            (
+            Ok((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Html("internal error".to_string()),
             )
-                .into_response()
+                .into_response())
         }
     }
 }

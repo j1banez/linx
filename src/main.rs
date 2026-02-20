@@ -1,6 +1,6 @@
 use linx::{
     AppState, DEFAULT_REDIRECT_CACHE_CAPACITY, build_app,
-    validate::{DEFAULT_CODE_LEN, MAX_CODE_LEN, MIN_CODE_LEN},
+    value::{DEFAULT_CODE_LEN, MAX_CODE_LEN, MIN_CODE_LEN},
 };
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use std::env;
