@@ -1,0 +1,144 @@
+use crate::AppState;
+use crate::error::AppError;
+use crate::response::AppResponse;
+use crate::sql;
+use crate::value::Code;
+use axum::extract::{Path, State};
+use sqlx::SqlitePool;
+use std::time::Instant;
+use tracing::instrument;
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct StatsBuffer {
+    pub(crate) pending: i64,
+    pub(crate) last_flush: Instant,
+}
+
+#[instrument(skip(state))]
+pub async fn redirect(
+    State(state): State<AppState>,
+    Path(code): Path<String>,
+) -> Result<AppResponse, AppError> {
+    let code = Code::try_from(code).map_err(|_| AppError::NotFound(None))?;
+
+    // Try to get the redirect from the cache
+    let cached = state
+        .redirect_cache
+        .lock()
+        .map_err(|_| {
+            tracing::error!("redirect cache lock poisoned");
+            AppError::Internal
+        })?
+        .get(code.as_str())
+        .cloned();
+
+    if let Some(to) = cached {
+        maybe_bump_link_stats(&state, &code);
+
+        return Ok(AppResponse::Redirect(to));
+    }
+
+    tracing::debug!(%code, "redirect cache miss");
+
+    // Try to get the redirect from the database
+    let Some(to) = sql::fetch_link_url(&state.db, &code).await? else {
+        return Err(AppError::NotFound(None));
+    };
+
+    state
+        .redirect_cache
+        .lock()
+        .map_err(|_| {
+            tracing::error!("redirect cache lock poisoned");
+            AppError::Internal
+        })?
+        .put(code.to_string(), to.clone());
+
+    maybe_bump_link_stats(&state, &code);
+
+    Ok(AppResponse::Redirect(to))
+}
+
+// Batch stats updates to reduce SQLite write contention while keeping stats fresh.
+// Flush when either a count threshold is reached or a time window elapses.
+fn maybe_bump_link_stats(state: &AppState, code: &Code) {
+    let now = Instant::now();
+    let mut flush_count = None;
+
+    {
+        let Ok(mut buffer) = state.stats_buffer.lock() else {
+            tracing::error!("stats buffer lock poisoned");
+            return;
+        };
+        let entry = buffer
+            .entry(code.to_string())
+            .or_insert_with(|| StatsBuffer {
+                pending: 0,
+                // Ensure first hit flushes immediately to keep stats responsive.
+                last_flush: now.checked_sub(state.stats_flush_interval).unwrap_or(now),
+            });
+
+        entry.pending += 1;
+
+        if entry.pending >= state.stats_batch_size
+            || now.duration_since(entry.last_flush) >= state.stats_flush_interval
+        {
+            flush_count = Some(entry.pending);
+            entry.pending = 0;
+            entry.last_flush = now;
+        }
+    }
+
+    if let Some(count) = flush_count {
+        spawn_bump_link_stats(state.db.clone(), code.clone(), count);
+    }
+}
+
+fn spawn_bump_link_stats(db: SqlitePool, code: Code, count: i64) {
+    tokio::spawn(async move {
+        if let Err(err) = sql::bump_link_stats_by(&db, &code, count).await {
+            tracing::error!(%code, error = ?err, "failed to bump link stats");
+        }
+    });
+}
+
+impl AppState {
+    pub async fn flush_pending_stats(&self) {
+        let pending = {
+            let Ok(mut buffer) = self.stats_buffer.lock() else {
+                tracing::error!("stats buffer lock poisoned");
+                return;
+            };
+
+            buffer
+                .drain()
+                .filter_map(|(raw_code, stats)| {
+                    if stats.pending <= 0 {
+                        return None;
+                    }
+
+                    match Code::try_from(raw_code) {
+                        Ok(code) => Some((code, stats.pending)),
+                        Err(err) => {
+                            tracing::error!(error = ?err, "invalid code found in stats buffer");
+                            None
+                        }
+                    }
+                })
+                .collect::<Vec<_>>()
+        };
+
+        if pending.is_empty() {
+            tracing::info!(entries = pending.len(), "no buffered stats");
+            return;
+        }
+
+        tracing::info!(entries = pending.len(), "flushing buffered stats");
+
+        for (code, count) in pending {
+            if let Err(err) = sql::bump_link_stats_by(&self.db, &code, count).await {
+                tracing::error!(%code, error = ?err, "failed to flush buffered stats");
+            }
+        }
+    }
+}
