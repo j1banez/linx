@@ -8,9 +8,12 @@ pub async fn new_test_db() -> SqlitePool {
         .max_connections(1)
         .connect("sqlite::memory:?cache=shared")
         .await
-        .unwrap();
+        .expect("test database should connect");
 
-    sqlx::migrate!().run(&pool).await.unwrap();
+    sqlx::migrate!()
+        .run(&pool)
+        .await
+        .expect("test migrations should run");
 
     pool
 }

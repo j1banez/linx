@@ -20,7 +20,7 @@ async fn stats_returns_link_details() {
     .bind(1_700_000_100i64)
     .execute(&pool)
     .await
-    .unwrap();
+    .expect("seed stats row should be inserted");
 
     let app = common::new_test_app(pool);
 
@@ -30,15 +30,20 @@ async fn stats_returns_link_details() {
                 .method("GET")
                 .uri("/api/ex/stats")
                 .body(Body::empty())
-                .unwrap(),
+                .expect("request should be built"),
         )
         .await
-        .unwrap();
+        .expect("stats request should succeed");
 
     assert_eq!(response.status(), StatusCode::OK);
 
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let payload: Value = serde_json::from_slice(&body).unwrap();
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("response body should be readable")
+        .to_bytes();
+    let payload: Value = serde_json::from_slice(&body).expect("response body should be valid json");
 
     assert_eq!(payload["code"], "ex");
     assert_eq!(payload["url"], "https://example.com");
@@ -58,10 +63,10 @@ async fn stats_returns_404_for_unknown_code() {
                 .method("GET")
                 .uri("/api/doesnotexist/stats")
                 .body(Body::empty())
-                .unwrap(),
+                .expect("request should be built"),
         )
         .await
-        .unwrap();
+        .expect("stats request should succeed");
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }

@@ -24,15 +24,20 @@ async fn shorten_returns_code_and_short() {
                 .uri("/api/shorten")
                 .header("content-type", "application/json")
                 .body(Body::from(body))
-                .unwrap(),
+                .expect("request should be built"),
         )
         .await
-        .unwrap();
+        .expect("shorten request should succeed");
 
     assert_eq!(response.status(), StatusCode::OK);
 
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let payload: Value = serde_json::from_slice(&body).unwrap();
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("response body should be readable")
+        .to_bytes();
+    let payload: Value = serde_json::from_slice(&body).expect("response body should be valid json");
 
     assert_eq!(payload["code"], "ex");
     assert_eq!(payload["short_url"], "http://localhost:3000/ex");

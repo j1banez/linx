@@ -17,7 +17,7 @@ async fn redirect_returns_location_header() {
         .bind("https://example.com")
         .execute(&pool)
         .await
-        .unwrap();
+        .expect("seed redirect row should be inserted");
 
     let app = common::new_test_app(pool);
 
@@ -27,14 +27,17 @@ async fn redirect_returns_location_header() {
                 .method("GET")
                 .uri("/ex")
                 .body(Body::empty())
-                .unwrap(),
+                .expect("request should be built"),
         )
         .await
-        .unwrap();
+        .expect("redirect request should succeed");
 
     assert_eq!(response.status(), StatusCode::MOVED_PERMANENTLY);
     assert_eq!(
-        response.headers().get(LOCATION).unwrap(),
+        response
+            .headers()
+            .get(LOCATION)
+            .expect("location header should be present"),
         "https://example.com"
     );
 }
@@ -51,7 +54,7 @@ async fn redirect_bumps_stats() {
     .bind("https://example.com")
     .execute(&pool)
     .await
-    .unwrap();
+    .expect("seed redirect row should be inserted");
 
     let app = common::new_test_app(pool.clone());
 
@@ -61,10 +64,10 @@ async fn redirect_bumps_stats() {
                 .method("GET")
                 .uri("/ex")
                 .body(Body::empty())
-                .unwrap(),
+                .expect("request should be built"),
         )
         .await
-        .unwrap();
+        .expect("redirect request should succeed");
 
     // Stats are updated async, give the spawned task time to run
     sleep(Duration::from_millis(10)).await;
@@ -75,7 +78,7 @@ async fn redirect_bumps_stats() {
     .bind("ex")
     .fetch_one(&pool)
     .await
-    .unwrap();
+    .expect("stats row should be queryable");
 
     assert_eq!(clicks, 1);
     assert!(last_accessed_at.is_some());
@@ -93,7 +96,7 @@ async fn flush_pending_stats_persists_buffered_clicks() {
     .bind("https://example.com")
     .execute(&pool)
     .await
-    .unwrap();
+    .expect("seed redirect row should be inserted");
 
     let state = AppState::new(
         "http://localhost:3000".to_string(),
@@ -111,10 +114,10 @@ async fn flush_pending_stats_persists_buffered_clicks() {
                 .method("GET")
                 .uri("/ex")
                 .body(Body::empty())
-                .unwrap(),
+                .expect("request should be built"),
         )
         .await
-        .unwrap();
+        .expect("redirect request should succeed");
 
     // First hit flushes immediately via spawned task.
     sleep(Duration::from_millis(10)).await;
@@ -123,7 +126,7 @@ async fn flush_pending_stats_persists_buffered_clicks() {
         .bind("ex")
         .fetch_one(&pool)
         .await
-        .unwrap();
+        .expect("stats row should be queryable");
     assert_eq!(clicks, 1);
 
     let _ = app
@@ -132,10 +135,10 @@ async fn flush_pending_stats_persists_buffered_clicks() {
                 .method("GET")
                 .uri("/ex")
                 .body(Body::empty())
-                .unwrap(),
+                .expect("request should be built"),
         )
         .await
-        .unwrap();
+        .expect("redirect request should succeed");
 
     // Second hit stays buffered (below threshold and within flush interval).
     shutdown_state.flush_pending_stats().await;
@@ -144,6 +147,6 @@ async fn flush_pending_stats_persists_buffered_clicks() {
         .bind("ex")
         .fetch_one(&pool)
         .await
-        .unwrap();
+        .expect("stats row should be queryable");
     assert_eq!(clicks, 2);
 }
