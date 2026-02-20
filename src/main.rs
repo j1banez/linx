@@ -66,16 +66,20 @@ async fn main() {
     sqlx::migrate!().run(&pool).await.unwrap();
 
     let state = AppState::new(base_url, pool, code_len, cache_capacity);
+    let shutdown_state = state.clone();
     let app = build_app(state);
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
 
     tracing::info!("listening on http://{}", listener.local_addr().unwrap());
 
-    axum::serve(listener, app)
+    let serve_result = axum::serve(listener, app)
         .with_graceful_shutdown(async {
             let _ = tokio::signal::ctrl_c().await;
             tracing::info!("shutdown signal received");
         })
-        .await
-        .unwrap();
+        .await;
+
+    shutdown_state.flush_pending_stats().await;
+
+    serve_result.unwrap();
 }

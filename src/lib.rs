@@ -61,6 +61,45 @@ impl AppState {
             stats_flush_interval: DEFAULT_STATS_FLUSH_INTERVAL,
         }
     }
+
+    pub async fn flush_pending_stats(&self) {
+        let pending = {
+            let Ok(mut buffer) = self.stats_buffer.lock() else {
+                tracing::error!("stats buffer lock poisoned");
+                return;
+            };
+
+            buffer
+                .drain()
+                .filter_map(|(raw_code, stats)| {
+                    if stats.pending <= 0 {
+                        return None;
+                    }
+
+                    match Code::try_from(raw_code) {
+                        Ok(code) => Some((code, stats.pending)),
+                        Err(err) => {
+                            tracing::error!(error = ?err, "invalid code found in stats buffer");
+                            None
+                        }
+                    }
+                })
+                .collect::<Vec<_>>()
+        };
+
+        if pending.is_empty() {
+            tracing::info!(entries = pending.len(), "no buffered stats");
+            return;
+        }
+
+        tracing::info!(entries = pending.len(), "flushing buffered stats");
+
+        for (code, count) in pending {
+            if let Err(err) = sql::bump_link_stats_by(&self.db, &code, count).await {
+                tracing::error!(%code, error = ?err, "failed to flush buffered stats");
+            }
+        }
+    }
 }
 
 pub fn build_app(state: AppState) -> Router {
