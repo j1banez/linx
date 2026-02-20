@@ -11,6 +11,7 @@ homepage = "https://github.com/j1banez/linx"
 [dependencies]
 askama = "0.15.4"
 axum = "0.8.8"
+clap = { version = "4.5.60", features = ["derive", "env"] }
 lru = "0.16.3"
 rand = "0.8"
 serde = { version = "1.0.227", features = ["derive"] }
@@ -20,7 +21,7 @@ thiserror = "2.0.18"
 tokio = { version = "1.49.0", features = ["full"] }
 tower-http = { version = "0.6.8", features = ["fs"] }
 tracing = "0.1.44"
-tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.22", features = ["env-filter", "json"] }
 url = "2.5.8"
 
 [dev-dependencies]
@@ -37,7 +38,7 @@ manual_range_contains = "allow"
 missing_errors_doc = "allow"
 undocumented_unsafe_blocks = "deny"
 dbg_macro = "warn"
-#expect_used = "warn"
+expect_used = "warn"
 if_then_some_else_none = "warn"
 indexing_slicing = "warn"
 large_include_file = "warn"
@@ -46,5 +47,5 @@ print_stdout = "warn"
 rc_buffer = "warn"
 rc_mutex = "warn"
 unnecessary_safety_doc = "warn"
-#unwrap_used = "warn"
+unwrap_used = "warn"
 module_name_repetitions = "allow"

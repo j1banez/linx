@@ -63,6 +63,7 @@ Note: replace `http://localhost:3000` with your actual domain or IP address in p
 | `LINX_URL`      | no       | `http://127.0.0.1:3000`         | Public base URL used to generate short links. This should match how users access the service (domain, port, https, etc.). |
 | `DATABASE_URL`  | no       | docker: `sqlite:///data/linx.db`, source: `sqlite://./linx.db` | SQLite database location. Use a volume to persist data when running in Docker. |
 | `DATABASE_MAX_CONNECTIONS` | no | `10`                            | Max SQLite pool connections. |
+| `PORT`          | no       | `3000`                          | HTTP listen port for the Linx server. |
 | `CODE_LEN`      | no       | `6`                             | Default short code length (allowed range 4-32). |
 | `REDIRECT_CACHE_CAPACITY`  | no | `10000`                    | Max number of redirect entries kept in the in-memory LRU cache. |
 | `RUST_LOG`      | no       | `info`                          | Log level (e.g. `debug`, `info`, `warn`, `error`). |

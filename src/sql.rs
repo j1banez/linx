@@ -1,8 +1,53 @@
 use crate::error::AppError;
 use crate::value::{BASE62, Code, CodeError, ValidUrl};
+use clap::Args;
 use rand::Rng;
 use rand::rngs::OsRng;
 use sqlx::SqlitePool;
+use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+use std::str::FromStr;
+use std::time::Duration;
+
+#[derive(Args, Debug, Clone)]
+pub struct DbArgs {
+    #[arg(long, env = "DATABASE_URL", default_value = "sqlite://./linx.db")]
+    pub database_url: String,
+    #[arg(long, env = "DATABASE_MAX_CONNECTIONS", default_value_t = 10)]
+    pub max_connections: u32,
+}
+
+pub async fn setup_pool(db: &DbArgs) -> Result<SqlitePool, std::io::Error> {
+    let options = SqliteConnectOptions::from_str(&db.database_url)
+        .map_err(|err| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("Invalid DATABASE_URL format: {} ({err})", db.database_url),
+            )
+        })?
+        .create_if_missing(true)
+        .pragma("journal_mode", "WAL")
+        .pragma("synchronous", "NORMAL")
+        .pragma("busy_timeout", "2000")
+        .pragma("foreign_keys", "ON");
+
+    let pool = SqlitePoolOptions::new()
+        .max_connections(db.max_connections)
+        .acquire_timeout(Duration::from_secs(5))
+        .connect_with(options)
+        .await
+        .map_err(|err| {
+            std::io::Error::other(format!(
+                "Failed to open SQLite database `{}`: {err}",
+                db.database_url
+            ))
+        })?;
+
+    sqlx::migrate!().run(&pool).await.map_err(|err| {
+        std::io::Error::other(format!("Failed to run database migrations: {err}"))
+    })?;
+
+    Ok(pool)
+}
 
 pub async fn insert_link(db: &SqlitePool, code: &Code, url: &ValidUrl) -> Result<(), AppError> {
     sqlx::query("INSERT INTO link (code, url) VALUES (?, ?)")

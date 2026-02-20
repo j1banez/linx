@@ -1,61 +1,60 @@
+use clap::Parser;
 use linx::{
-    AppState, DEFAULT_REDIRECT_CACHE_CAPACITY, build_app,
+    AppState, DEFAULT_REDIRECT_CACHE_CAPACITY, build_app, sql,
     value::{DEFAULT_CODE_LEN, MAX_CODE_LEN, MIN_CODE_LEN},
 };
-use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
-use std::env;
-use std::str::FromStr;
-use std::time::Duration;
-use tracing_subscriber::{EnvFilter, fmt};
+use tracing_subscriber::filter::LevelFilter;
+use tracing_subscriber::fmt::format::FmtSpan;
+use tracing_subscriber::{EnvFilter, fmt::time};
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Cli {
+    #[arg(long, env = "LINX_URL", default_value = "http://127.0.0.1:3000")]
+    app_url: String,
+    #[command(flatten)]
+    db: sql::DbArgs,
+    #[arg(long, env = "CODE_LEN", default_value_t = DEFAULT_CODE_LEN)]
+    code_len: usize,
+    #[arg(
+        long,
+        env = "REDIRECT_CACHE_CAPACITY",
+        default_value_t = DEFAULT_REDIRECT_CACHE_CAPACITY
+    )]
+    redirect_cache_capacity: usize,
+    #[arg(long, env = "PORT", default_value_t = 3000)]
+    port: u16,
+}
+
+fn init_tracing() {
+    let subscriber = tracing_subscriber::fmt()
+        .with_line_number(true)
+        .with_thread_names(true)
+        .with_timer(time::uptime())
+        .with_span_events(FmtSpan::NEW)
+        .with_env_filter(
+            EnvFilter::builder()
+                .with_default_directive(LevelFilter::INFO.into())
+                .from_env_lossy(),
+        );
+
+    if cfg!(debug_assertions) {
+        subscriber.pretty().init();
+    } else {
+        subscriber.json().init();
+    }
+}
 
 #[tokio::main]
-async fn main() {
-    fmt()
-        .with_env_filter(
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info,linx=info")),
-        )
-        .init();
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    init_tracing();
 
-    let base_url = env::var("LINX_URL")
-        .unwrap_or_else(|_| "http://127.0.0.1:3000".to_string())
-        .trim_end_matches('/')
-        .to_string();
-    let database_url =
-        env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://./linx.db".to_string());
-    let code_len = env::var("CODE_LEN")
-        .ok()
-        .and_then(|value| value.parse::<usize>().ok())
-        .filter(|value| *value > 0)
-        .unwrap_or(DEFAULT_CODE_LEN);
-    let cache_capacity = env::var("REDIRECT_CACHE_CAPACITY")
-        .ok()
-        .and_then(|value| value.parse::<usize>().ok())
-        .filter(|value| *value > 0)
-        .unwrap_or(DEFAULT_REDIRECT_CACHE_CAPACITY);
-    let max_connections = env::var("DATABASE_MAX_CONNECTIONS")
-        .ok()
-        .and_then(|value| value.parse::<u32>().ok())
-        .filter(|value| *value > 0)
-        .unwrap_or(10);
+    let cli = Cli::parse();
+    let base_url = cli.app_url.trim_end_matches('/').to_string();
 
-    let options = SqliteConnectOptions::from_str(&database_url)
-        .expect("Invalid DATABASE_URL format")
-        .create_if_missing(true)
-        .pragma("journal_mode", "WAL")
-        .pragma("synchronous", "NORMAL")
-        .pragma("busy_timeout", "2000")
-        .pragma("foreign_keys", "ON");
-
-    let pool = SqlitePoolOptions::new()
-        .max_connections(max_connections)
-        .acquire_timeout(Duration::from_secs(5))
-        .connect_with(options)
-        .await
-        .expect("Failed to open SQLite database");
-
-    if code_len < MIN_CODE_LEN || code_len > MAX_CODE_LEN {
+    if cli.code_len < MIN_CODE_LEN || cli.code_len > MAX_CODE_LEN {
         tracing::error!(
-            code_len,
+            cli.code_len,
             min = MIN_CODE_LEN,
             max = MAX_CODE_LEN,
             "invalid CODE_LEN"
@@ -63,14 +62,13 @@ async fn main() {
         std::process::exit(2);
     }
 
-    sqlx::migrate!().run(&pool).await.unwrap();
-
-    let state = AppState::new(base_url, pool, code_len, cache_capacity);
+    let pool = sql::setup_pool(&cli.db).await?;
+    let state = AppState::new(base_url, pool, cli.code_len, cli.redirect_cache_capacity);
     let shutdown_state = state.clone();
     let app = build_app(state);
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let listener = tokio::net::TcpListener::bind(("0.0.0.0", cli.port)).await?;
 
-    tracing::info!("listening on http://{}", listener.local_addr().unwrap());
+    tracing::info!("listening on http://{}", listener.local_addr()?);
 
     let serve_result = axum::serve(listener, app)
         .with_graceful_shutdown(async {
@@ -81,5 +79,6 @@ async fn main() {
 
     shutdown_state.flush_pending_stats().await;
 
-    serve_result.unwrap();
+    serve_result?;
+    Ok(())
 }
