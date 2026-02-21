@@ -34,7 +34,7 @@ fn init_tracing() {
         .with_line_number(true)
         .with_thread_names(true)
         .with_timer(time::uptime())
-        .with_span_events(FmtSpan::NEW)
+        .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
         .with_env_filter(
             EnvFilter::builder()
                 .with_default_directive(LevelFilter::INFO.into())
