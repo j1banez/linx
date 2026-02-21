@@ -5,43 +5,48 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde::Serialize;
+use thiserror::Error;
 
 #[derive(Serialize)]
 struct ErrorResponse {
     error: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum AppError {
+    #[error("{0}")]
     BadRequest(String),
+    #[error("{0}")]
     Conflict(String),
+    #[error(
+        "{}",
+        .0.as_deref()
+        .map_or_else(
+            || "not found".to_string(),
+            |entity| format!("{entity} not found")
+        )
+    )]
     NotFound(Option<String>),
+    #[error("internal error")]
     Internal,
 }
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         match self {
-            AppError::BadRequest(msg) => {
-                (StatusCode::BAD_REQUEST, error_response(msg)).into_response()
-            }
-            AppError::Conflict(msg) => (StatusCode::CONFLICT, error_response(msg)).into_response(),
-            AppError::NotFound(entity_name) => {
-                if let Some(entity_name) = entity_name {
-                    (
-                        StatusCode::NOT_FOUND,
-                        error_response(format!("{entity_name} not found")),
-                    )
-                        .into_response()
-                } else {
-                    StatusCode::NOT_FOUND.into_response()
-                }
-            }
-            AppError::Internal => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                error_response("internal error"),
-            )
-                .into_response(),
+            AppError::NotFound(None) => StatusCode::NOT_FOUND.into_response(),
+            err => (err.status_code(), error_response(err.to_string())).into_response(),
+        }
+    }
+}
+
+impl AppError {
+    fn status_code(&self) -> StatusCode {
+        match self {
+            AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
+            AppError::Conflict(_) => StatusCode::CONFLICT,
+            AppError::NotFound(_) => StatusCode::NOT_FOUND,
+            AppError::Internal => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
