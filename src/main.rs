@@ -3,6 +3,7 @@ use linx::{
     AppState, DEFAULT_REDIRECT_CACHE_CAPACITY, build_app, sql,
     value::{DEFAULT_CODE_LEN, MAX_CODE_LEN, MIN_CODE_LEN},
 };
+use std::net::IpAddr;
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::{EnvFilter, fmt::time};
@@ -22,6 +23,8 @@ struct Cli {
         default_value_t = DEFAULT_REDIRECT_CACHE_CAPACITY
     )]
     redirect_cache_capacity: usize,
+    #[arg(long, env = "HOST", default_value = "0.0.0.0")]
+    host: IpAddr,
     #[arg(long, env = "PORT", default_value_t = 3000)]
     port: u16,
 }
@@ -66,7 +69,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let state = AppState::new(base_url, pool, cli.code_len, cli.redirect_cache_capacity);
     let shutdown_state = state.clone();
     let app = build_app(state);
-    let listener = tokio::net::TcpListener::bind(("0.0.0.0", cli.port)).await?;
+    let listener = tokio::net::TcpListener::bind((cli.host, cli.port)).await?;
 
     tracing::info!("listening on http://{}", listener.local_addr()?);
 
