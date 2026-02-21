@@ -33,9 +33,20 @@ pub enum AppError {
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
+        tracing::error!(error=?self, "request failure");
+
+        let status = self.status_code();
+
         match self {
-            AppError::NotFound(None) => StatusCode::NOT_FOUND.into_response(),
-            err => (err.status_code(), error_response(err.to_string())).into_response(),
+            // Simple HTTP 404 response
+            Self::NotFound(None) => status.into_response(),
+            err => (
+                status,
+                Json(ErrorResponse {
+                    error: err.to_string(),
+                }),
+            )
+                .into_response(),
         }
     }
 }
@@ -70,8 +81,4 @@ impl From<ValidUrlError> for AppError {
     fn from(err: ValidUrlError) -> Self {
         AppError::BadRequest(err.to_string())
     }
-}
-
-fn error_response(msg: impl Into<String>) -> Json<ErrorResponse> {
-    Json(ErrorResponse { error: msg.into() })
 }
