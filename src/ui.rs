@@ -15,6 +15,59 @@ use tracing::instrument;
 
 const HOME_PAGE_SIZE: i64 = 50;
 
+#[derive(Debug, Clone, Copy)]
+struct Pagination {
+    page: i64,
+    total_pages: i64,
+}
+
+impl Pagination {
+    fn new(total: i64, page_size: i64, requested_page: Option<i64>) -> Self {
+        let total_pages = if total == 0 {
+            1
+        } else {
+            // Ceil division so partial pages still count.
+            (total + page_size - 1) / page_size
+        };
+
+        let mut page = requested_page.unwrap_or(1);
+
+        if page < 1 {
+            page = 1;
+        }
+
+        if page > total_pages {
+            page = total_pages;
+        }
+
+        Self { page, total_pages }
+    }
+
+    fn has_prev(self) -> bool {
+        self.page > 1
+    }
+
+    fn has_next(self) -> bool {
+        self.page < self.total_pages
+    }
+
+    fn prev_page(self) -> i64 {
+        if self.page > 1 { self.page - 1 } else { 1 }
+    }
+
+    fn next_page(self) -> i64 {
+        if self.page < self.total_pages {
+            self.page + 1
+        } else {
+            self.total_pages
+        }
+    }
+
+    fn offset(self, page_size: i64) -> i64 {
+        (self.page - 1) * page_size
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct ShortenForm {
     url: String,
@@ -80,28 +133,14 @@ async fn home_page(
         AppError::Internal
     })?;
 
-    let total_pages = if total == 0 {
-        1
-    } else {
-        // Ceil division so partial pages still count.
-        (total + HOME_PAGE_SIZE - 1) / HOME_PAGE_SIZE
-    };
-
-    let mut page = query
+    let requested_page = query
         .page
         .as_deref()
-        .and_then(|value| value.parse::<i64>().ok())
-        .unwrap_or(1);
+        .and_then(|value| value.parse::<i64>().ok());
 
-    if page < 1 {
-        page = 1;
-    }
+    let pagination = Pagination::new(total, HOME_PAGE_SIZE, requested_page);
 
-    if page > total_pages {
-        page = total_pages;
-    }
-
-    let offset = (page - 1) * HOME_PAGE_SIZE;
+    let offset = pagination.offset(HOME_PAGE_SIZE);
 
     let rows = sql::list_links(&state.db, HOME_PAGE_SIZE, offset)
         .await
@@ -123,16 +162,12 @@ async fn home_page(
     let tpl = HomeTemplate {
         msg: None,
         links,
-        page,
-        total_pages,
-        has_prev: page > 1,
-        has_next: page < total_pages,
-        prev_page: if page > 1 { page - 1 } else { 1 },
-        next_page: if page < total_pages {
-            page + 1
-        } else {
-            total_pages
-        },
+        page: pagination.page,
+        total_pages: pagination.total_pages,
+        has_prev: pagination.has_prev(),
+        has_next: pagination.has_next(),
+        prev_page: pagination.prev_page(),
+        next_page: pagination.next_page(),
     };
 
     let html = tpl.render().map_err(|_| AppError::Internal)?;
@@ -220,5 +255,57 @@ async fn stats_page(
             )
                 .into_response())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Pagination;
+
+    #[test]
+    fn pagination_total_zero_defaults_to_page_one() {
+        let p = Pagination::new(0, 50, None);
+        assert_eq!(p.page, 1);
+        assert_eq!(p.total_pages, 1);
+        assert!(!p.has_prev());
+        assert!(!p.has_next());
+        assert_eq!(p.prev_page(), 1);
+        assert_eq!(p.next_page(), 1);
+        assert_eq!(p.offset(50), 0);
+    }
+
+    #[test]
+    fn pagination_clamps_page_below_one() {
+        let p = Pagination::new(120, 50, Some(0));
+        assert_eq!(p.page, 1);
+        assert_eq!(p.total_pages, 3);
+        assert!(!p.has_prev());
+        assert!(p.has_next());
+        assert_eq!(p.prev_page(), 1);
+        assert_eq!(p.next_page(), 2);
+    }
+
+    #[test]
+    fn pagination_keeps_requested_page_in_range() {
+        let p = Pagination::new(120, 50, Some(2));
+        assert_eq!(p.page, 2);
+        assert_eq!(p.total_pages, 3);
+        assert!(p.has_prev());
+        assert!(p.has_next());
+        assert_eq!(p.prev_page(), 1);
+        assert_eq!(p.next_page(), 3);
+        assert_eq!(p.offset(50), 50);
+    }
+
+    #[test]
+    fn pagination_clamps_page_above_max() {
+        let p = Pagination::new(120, 50, Some(99));
+        assert_eq!(p.page, 3);
+        assert_eq!(p.total_pages, 3);
+        assert!(p.has_prev());
+        assert!(!p.has_next());
+        assert_eq!(p.prev_page(), 2);
+        assert_eq!(p.next_page(), 3);
+        assert_eq!(p.offset(50), 100);
     }
 }
